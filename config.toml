@@ -1,0 +1,108 @@
+# User setup variables
+alias = 'Magic'
+stt_key = 'Z'
+
+# Chance for a plane on a mission to load a ground weapon
+[ground_chances]
+SEAD = 0.35
+BAI = 0.50
+Strike = 0.75
+CAP = -1
+
+# Planes
+[planes.f18] # All planes follow the same format, only the first is commented
+name = 'f-18' # Name of plane
+pylon_count = 9 # Number of pylons
+payload.1 = [0, 2, 2, 1, 0, 1, 2, 2, 0] # Fox-3
+payload.2 = [0, 1, 1, 1, 0, 1, 1, 1, 0] # Fox-1
+payload.3 = [1, 2, 0, 0, 0, 0, 0, 2, 1] # Fox-2
+payload.4 = [0, 0, 1, 0, 1, 0, 1, 0, 0] # Fuel
+payload.5 = [0, 1, 1, 1, 1, 1, 1, 1, 0] # Ground attack pylons
+payload_overrides = [['BAI', 'Strike', 'SEAD'], [4, 5]] # Mission specific payloads
+fuel_add = 22 # Fuel added by max size drop tanks
+fuel_max = 108 # Default max fuel
+
+[planes.jf17]
+name = 'jf-17'
+pylon_count = 7
+payload.1 = [0, 2, 0, 0, 0, 2, 0]
+payload.2 = [0, 0, 0, 0, 0, 0, 0]
+payload.3 = [1, 1, 0, 0, 0, 1, 1]
+payload.4 = [0, 0, 1, 1, 1, 0, 0]
+payload.5 = [0, 1, 1, 1, 1, 1, 0]
+payload_overrides = [['CAP', 'BAI', 'Strike', 'SEAD'], [3]]
+fuel_add = 22
+fuel_max = 51
+
+[planes.f16]
+name = 'f-16'
+pylon_count = 11
+payload.1 = [1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1]
+payload.2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+payload.3 = [0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0]
+payload.4 = [0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0]
+payload.5 = [0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0]
+payload_overrides = [['CAP', 'BAI', 'Strike', 'SEAD'], [4, 5, 6]]
+fuel_add = 20
+fuel_max = 72
+
+# Sams
+[sams.sa2]
+name = 'SA-2'
+shorthand = 'two'
+range = 21.6
+
+[sams.sa3]
+name = 'SA-3'
+shorthand = 'three'
+range = 13.5
+
+[sams.sa5]
+name = 'SA-5'
+shorthand = 'five'
+range = 21.5
+
+[sams.sa6]
+name = 'SA-6'
+shorthand = 'six'
+range = 19.2
+
+[sams.sa8]
+name = 'SA-8'
+shorthand = 'eight'
+range = 7.5
+
+[sams.sa9]
+name = 'SA-9'
+shorthand = 'nine'
+range = 2.5
+
+[sams.sa10]
+name = 'SA-10'
+shorthand = 'ten'
+range = 40
+
+[sams.sa11]
+name = 'SA-11'
+shorthand = 'eleven'
+range = 18.9
+
+[sams.sa13]
+name = 'SA-13'
+shorthand = 'thirteen'
+range = 4.3
+
+[sams.sa15]
+name = 'SA-15'
+shorthand = 'fifteen'
+range = 6.5
+
+[sams.sa17]
+name = 'SA-17'
+shorthand = 'seventeen'
+range = 27
+
+[sams.sa19]
+name = 'SA-19'
+shorthand = 'nineteen'
+range = 4
