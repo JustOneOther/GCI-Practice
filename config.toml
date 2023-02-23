@@ -1,6 +1,6 @@
 # User setup variables
 alias = 'Magic'
-stt_key = 'Z'
+sr_key = 'Z'
 
 # Chance for a plane on a mission to load a ground weapon
 [ground_chances]
