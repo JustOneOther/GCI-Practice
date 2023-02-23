@@ -1,4 +1,4 @@
-from math import cos, radians, sin
+from math import atan2, cos, degrees, radians, sin, sqrt
 from random import choice, uniform
 from tkinter import ttk
 from typing import Callable
@@ -240,18 +240,52 @@ class RadarScreen(tk.Canvas):
 		# Init variables
 		self.affect_buttons = disable_buttons
 		self.top_left = (-self.draw.screen.screensize()[0] // 2, self.draw.screen.screensize()[1] // 2)
-		self.scalar = 0
+		self.scalar = 1
 		self.canv_size = (0, 0)
 		self.center = (0, 0)
+		self.drawing = False
+		self.ruler_down = False
+		self.ruler_coords = (0, 0)
+		self.bind('<Button-1>', func=self.ruler_place)
 
 	def _get_center(self) -> None:
 		self.canv_size = (self.winfo_width() - 5, self.winfo_height() - 6)
 		self.center = (self.top_left[0] + self.canv_size[0] / 2, self.top_left[1] - self.canv_size[1] / 2)
 
+	def ruler_place(self, event):
+		if not self.drawing:		# Don't allow if drawing a page
+			coords = (event.x + self.top_left[0] - 2, -event.y + self.top_left[1] + 2)		# Get mouse pos in draw reference
+			if self.ruler_down:		# If first dot is down
+				# Get coords, angle and distance in radar reference
+				radar_coords = (coords[0] / self.scalar, coords[1] / self.scalar)
+				dist = sqrt((radar_coords[0] - self.ruler_coords[1][0]) ** 2 + (radar_coords[1] - self.ruler_coords[1][1]) ** 2)
+				ang = degrees(atan2(radar_coords[1] - self.ruler_coords[1][1], radar_coords[0] - self.ruler_coords[1][0]))
+
+				# Draw line, text, and final dot
+				self.draw.pendown()
+				self.draw.goto((coords[0] + self.ruler_coords[0][0]) / 2, (coords[1] + self.ruler_coords[0][1]) / 2)
+				self.draw.write(str(round((90 - ang) % 360, 1)) + '° | ' + str(round(dist, 1)) + ' NM',
+								align='center', font=('Arial', 9, 'normal'))
+				self.draw.goto(coords[0], coords[1])
+				self.draw.dot(4, 'black')
+				self.draw.penup()
+
+				self.ruler_down = False		# Signal second dot down
+			else:		# If first dot is not down
+				# Go to first dot and draw it
+				self.draw.goto(coords[0], coords[1])
+				self.draw.pendown()
+				self.draw.dot(4, 'black')
+				self.draw.penup()
+
+				self.ruler_coords = (coords, (coords[0] / self.scalar, coords[1] / self.scalar))   # Log canvas and radar coords
+				self.ruler_down = True		# Signal second dot down
+
 	def border(self) -> None:
 		# Disable affector buttons
 		for button in self.affect_buttons:
 			button.config(state='disabled')
+		self.drawing = True
 
 		# Operation
 		self._get_center()
@@ -266,11 +300,12 @@ class RadarScreen(tk.Canvas):
 		# Enable affector buttons
 		for button in self.affect_buttons:
 			button.config(state='active')
+		self.drawing = False
 
-	def _bdraw_plane(self, plane, i: int, bullseye_pos: tuple[float, float], scalar: float) -> None:
+	def _bdraw_plane(self, plane, i: int, bullseye_pos: tuple[float, float]) -> None:
 		self.draw.goto(bullseye_pos[0], bullseye_pos[1])
 		self.draw.setheading(90 - plane.bulls.bearing)
-		self.draw.forward(plane.bulls.dist * scalar)
+		self.draw.forward(plane.bulls.dist * self.scalar)
 		self.draw.pendown()
 		self.draw.dot(5)
 		if plane.text:
@@ -278,13 +313,15 @@ class RadarScreen(tk.Canvas):
 		else:
 			self.draw.write(f'{i}', font=('Arial', 11, 'normal'))
 		self.draw.setheading(90 - plane.bulls.heading)
-		self.draw.forward(plane.speed * scalar)
+		self.draw.forward(plane.speed * self.scalar)
 		self.draw.penup()
 
 	def b_draw(self, allies: list, enemies: list, threats: list) -> None:
 		# Disable affector buttons
 		for button in self.affect_buttons:
 			button.config(state='disabled')
+		self.drawing = True
+		self.ruler_down = False
 
 		# Clears drawer
 		self.draw.clear()
@@ -302,47 +339,47 @@ class RadarScreen(tk.Canvas):
 			# Calculates scalor
 			x_range = (max([i[0] for i in coords]), min([i[0] for i in coords]))
 			y_range = (max([i[1] for i in coords]), min([i[1] for i in coords]))
-			great_scalor = max(((x_range[0] - x_range[1]) / self.canv_size[0], (y_range[0] - y_range[1]) / self.canv_size[1]))
-			scalar = uniform(0.6, 0.9) / great_scalor
+			great_scalar = max(((x_range[0] - x_range[1]) / self.canv_size[0], (y_range[0] - y_range[1]) / self.canv_size[1]))
+			self.scalar = uniform(0.6, 0.9) / great_scalar
 
 			# Get bullseye position and draw
 			plane_center = (sum(x_range) / 2, sum(y_range) / 2)
-			bullseye_pos = (self.center[0] - (plane_center[0] * scalar), self.center[1] - (plane_center[1] * scalar))
+			bullseye_pos = (self.center[0] - (plane_center[0] * self.scalar), self.center[1] - (plane_center[1] * self.scalar))
 			self.draw.goto(bullseye_pos[0], bullseye_pos[1])
 			self.draw.pendown()
 			self.draw.dot(5)
 			self.draw.penup()
-			self.draw.sety(bullseye_pos[1] - round(2 * scalar))
+			self.draw.sety(bullseye_pos[1] - round(2 * self.scalar))
 			self.draw.pendown()
-			self.draw.circle(round(2 * scalar), steps=6)
+			self.draw.circle(round(2 * self.scalar), steps=6)
 			self.draw.penup()
 
 			# Draw enemies, allies, and threats
 			i = 1
 			self.draw.color('red')
 			for plane in enemies:
-				self._bdraw_plane(plane, i, bullseye_pos, scalar)
+				self._bdraw_plane(plane, i, bullseye_pos)
 				i += 1
 
 			self.draw.color('blue')
 			for plane in allies:
-				self._bdraw_plane(plane, i, bullseye_pos, scalar)
+				self._bdraw_plane(plane, i, bullseye_pos)
 				i += 1
 
 			self.draw.color('orange')
 			for sam in threats:
 				self.draw.goto(bullseye_pos[0], bullseye_pos[1])
 				self.draw.setheading(90 - sam.bulls.bearing)
-				self.draw.forward(sam.bulls.dist * scalar)
+				self.draw.forward(sam.bulls.dist * self.scalar)
 				self.draw.pendown()
 				self.draw.dot(5)
 				self.draw.write(sam.text, font=('Arial', 11, 'normal'))
 				self.draw.penup()
 				self.draw.setheading(270)
-				self.draw.forward(sam.fire_range * scalar)
+				self.draw.forward(sam.fire_range * self.scalar)
 				self.draw.setheading(0)
 				self.draw.pendown()
-				self.draw.circle(sam.fire_range * scalar, steps=35)
+				self.draw.circle(sam.fire_range * self.scalar, steps=35)
 				self.draw.penup()
 
 			self.draw.color('black')
@@ -359,6 +396,7 @@ class RadarScreen(tk.Canvas):
 		# Enable affector buttons
 		for button in self.affect_buttons:
 			button.config(state='active')
+		self.drawing = False
 
 
 class SettingsBox(ttk.Frame):
@@ -383,7 +421,8 @@ class SettingsBox(ttk.Frame):
 		self.caution_button.state(['!alternate'])
 		self.problem_buttons = [self.check_in_button, self.threat_button, self.caution_button]
 		self.wpm_label = ttk.Label(self, text='TTS WPM')
-		self.tts_wpm = ttk.Spinbox(self, from_=150, to=300, command=lambda: wpm_func(int(self.tts_wpm.get())), width=10)
+		self.tts_wpm = ttk.Spinbox(self, from_=150, to=300, increment=10,
+								   command=lambda: wpm_func(int(self.tts_wpm.get())), width=10)
 		self.tts_wpm.set(200)
 
 		# Grid out objects
