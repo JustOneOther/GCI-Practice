@@ -1,4 +1,4 @@
-from GCI_structures import Braa, Bulls, LockVal, TranslateDict
+from GCI_structures import Braa, Bulls, LockVal, Response, TranslateDict
 from math import asin, atan2, cos, degrees, radians, sin, sqrt
 from multiprocessing import Process
 from random import choice, choices, randint, uniform
@@ -155,45 +155,40 @@ class Window(ttk.Frame):
 		self.rowconfigure(3, weight=0, minsize=100)
 
 		# Infobar
-		self.infobar = tk_objects.InfoBar(lambda: self.radar.border(), test_draw, 'v0.3.2-alpha', self)
-		self.infobar.grid(column=0, row=0, sticky='NSEW')
+		self.infobar = tk_objects.InfoBar('v0.4.0-alpha', self)
+		self.infobar.grid(column=0, row=0, sticky='NSEW', padx=5)
 
 		# Problem management
 		self.prob_man = tk_objects.ProblemManagement(lambda: check_answer.set(), lambda: new_problem.set(),
-													 lambda: update_planes.set(), self, borderwidth=4, relief='ridge')
+													 self.draw_radar, self, borderwidth=4, relief='ridge')
 		self.prob_man.grid(column=1, row=2, rowspan=2, sticky='NSEW')
 
 		# Canvas
-		self.radar = tk_objects.RadarScreen((self.infobar.button1, self.infobar.button2,
-											 self.prob_man.button_r, self.prob_man.button_m), self)
+		self.radar = tk_objects.RadarScreen(self)
 		self.radar.grid(column=0, row=1, rowspan=2, sticky='NSEW')
 
 		# Settings
 		self.settings = tk_objects.SettingsBox(tts.tts_set_speed, self, borderwidth=4, relief='ridge')
 		self.settings.grid(column=1, row=0, rowspan=2, sticky='NSEW')
-		self.settings.set_funcs(check_in, threat, caution, lambda: print('heya'))
+		self.settings.set_funcs(check_in, threat, caution, lambda: self.status_write('Select a problem type'))
 
 		# Answer bar
 		self.answers = tk_objects.AnswerBox(sr_key, self)
 		self.answers.grid(column=0, row=3, sticky='NSEW')
 
-	def set_gen_color(self, color):
-		self.answers.gen_text.config(fg=color)
+		# Vars
+		self.canv_affectors = (self.prob_man.button_r, self.prob_man.button_m)
 
-	def set_check_color(self, inds):
-		for i in range(len(self.answers.labels[:-1])):
-			if i in inds:
-				self.answers.labels[i].config(fg='green')
-			else:
-				self.answers.labels[i].config(fg='red')
+	def _disable_canv_affectors(self):
+		for button in self.canv_affectors:
+			button.config(state='disabled')
+		self.radar.drawing = True
+		self.radar.ruler_down = False
 
-	def reset_answers(self):
-		self.answers.reset_colors()
-		for box in self.answers.answer_boxes:
-			try:
-				box.prompt()
-			except AttributeError:
-				box.delete(0, 'end')
+	def _enable_canv_affectors(self):
+		for button in self.canv_affectors:
+			button.config(state='active')
+		self.radar.drawing = False
 
 	def clear_tables(self):
 		for table in [self.prob_man.braa_table, self.prob_man.bulls_table]:
@@ -205,6 +200,48 @@ class Window(ttk.Frame):
 		all_planes = hostile_list.val + friend_list.val + threat_list.val
 		self.prob_man.update_braa([plane.braa for plane in all_planes])
 		self.prob_man.update_bulls([plane.bulls for plane in all_planes])
+
+	def draw_radar(self):
+		self.radar.set_planes(friend_list.val, hostile_list.val, threat_list.val)
+		self.radar.set_scalar()
+		self._disable_canv_affectors()
+		self.radar.draw.clear()
+		self.radar.draw.setheading(0)
+		self.radar.draw_bulls()
+		self.radar.draw_planes()
+		self._enable_canv_affectors()
+
+	def get_answers(self):
+		if problem_func == caution:
+			usr = self.answers.gen_answers
+			print(Response(usr, r'\w+ \d-\d \w+ caution \S+ (bullseye \d{3}( for | |/)\d+|braa \d{3} \d+)'))
+		elif problem_func == threat:
+			usr = self.answers.gen_answers
+			print(Response(usr, r'\w+ \d-\d \w+ threat (bullseye \d{3}( for |/| )\d+ (at )?\d+ thousand track \w+ hostile|braa \d{3} \d+ \d+ thousand \w+( \w+)? hostile)'))
+		elif problem_func == check_in:
+			usr = self.answers.check_answers
+			print(Response(usr, r'\w+ \d-\d \w+ (standby|(radar|negative) contact)'))
+
+	def reset_answers(self):
+		self.answers.reset_colors()
+		for box in self.answers.answer_boxes:
+			try:
+				box.prompt()
+			except AttributeError:
+				box.delete(0, 'end')
+
+	def set_check_color(self, inds):
+		for i in range(len(self.answers.labels[:-1])):
+			if i in inds:
+				self.answers.labels[i].config(fg='green')
+			else:
+				self.answers.labels[i].config(fg='red')
+
+	def set_gen_color(self, color):
+		self.answers.gen_text.config(fg=color)
+
+	def status_write(self, msg: str):
+		self.infobar.status.config(text=msg)
 
 
 def do_nothing() -> None:
@@ -432,7 +469,7 @@ if __name__ == '__main__':
 	# Set up env variables
 	check_answer = threading.Event()		# Flag for if a solution check is requested by user
 	new_problem = threading.Event()			# Flag for if a new problem is requested by user
-	update_planes = threading.Event()		# Flag for if the radar needs to update
+	update_planes = threading.Event()		# Flag for if the radar needs to with a new problem
 	friend_list = LockVal([])				# Contains a list of all friendly planes on screen
 	hostile_list = LockVal([])				# Contains a list of all hostile planes
 	threat_list = LockVal([])				# Contains a list of all sam threats
@@ -443,7 +480,8 @@ if __name__ == '__main__':
 	problem_note[check_in] = lambda: app.answers.select(1)
 	problem_note[threat] = lambda: app.answers.select(0)
 
-	problem = threading.Thread(target=do_nothing)		# Set up dummy problem thread to prevent error on first problem
+	problem_func = do_nothing				# Set up dummy problem thread to prevent error on first problem
+	problem = threading.Thread(target=problem_func)
 	problem.start()
 
 
@@ -470,6 +508,7 @@ if __name__ == '__main__':
 			new_problem.clear()		# Prevent infinite loop
 
 		if check_answer.is_set():
+			app.get_answers()
 			if problem_func == caution:
 				caution_answers()
 			elif problem_func == check_in:
@@ -481,7 +520,7 @@ if __name__ == '__main__':
 		# Update turtle
 		if update_planes.is_set():
 			app.update_tables()				# Update BRAA/Bullseye tables
-			app.radar.b_draw(friend_list.val, hostile_list.val, threat_list.val)			# Draw radar with problem vars
+			app.draw_radar()				# Draw radar with problem vars
 			update_planes.clear()			# Prevent infinite loop
 
 		# Do tkinter

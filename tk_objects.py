@@ -67,7 +67,7 @@ class AnswerBox(ttk.Notebook):
 
 	@property
 	def gen_answers(self):
-		return [word.strip(',').lower() for word in self.gen_entry.get().split(' ')]
+		return self.gen_entry.get().lower().replace(',', '')
 
 	@property
 	def check_answers(self):
@@ -102,10 +102,10 @@ class DefaultEntry(tk.Entry):
 		self.text = text
 		self.is_focused = False
 		self.insert(0, self.text)
-		self.bind('<Enter>', func=self.on_enter)
-		self.bind('<Leave>', func=self.on_exit)
-		self.bind('<FocusIn>', func=self.focused)
-		self.bind('<FocusOut>', func=self.unfocused)
+		self.bind('<Enter>', func=self._on_enter)
+		self.bind('<Leave>', func=self._on_exit)
+		self.bind('<FocusIn>', func=self._focused)
+		self.bind('<FocusOut>', func=self._unfocused)
 
 	def prompt(self):
 		"""
@@ -115,24 +115,23 @@ class DefaultEntry(tk.Entry):
 		self.insert(0, self.text)
 		# noinspection PyTypeChecker
 		self.config(fg='#999999', justify=self.default_justify)
-		self.master.focus()
 
-	def focused(self, *args):
+	def _focused(self, *args):
 		self.is_focused = True
 		if self.get() == self.text:		# Don't erase user data
 			self.delete(0, 'end')
 			self.config(fg='black', justify='left')
 
-	def unfocused(self, *args):
+	def _unfocused(self, *args):
 		self.is_focused = False
-		self.on_exit()
+		self._on_exit()
 
-	def on_enter(self, *args):
+	def _on_enter(self, *args):
 		if self.get() == self.text:		# Don't erase user data
 			self.delete(0, 'end')
 			self.config(fg='black', justify=self.default_justify)
 
-	def on_exit(self, *args):
+	def _on_exit(self, *args):
 		if self.get() == '' and not self.is_focused:		# Don't erase user data
 			self.insert(0, self.text)
 			# noinspection PyTypeChecker
@@ -140,26 +139,24 @@ class DefaultEntry(tk.Entry):
 
 
 class InfoBar(ttk.Frame):
-	def __init__(self, button1_cmd: Callable, button2_cmd: Callable, version: str, *args, **kwargs) -> None:
+	def __init__(self, version: str, *args, **kwargs) -> None:
 		super().__init__(*args, **kwargs)		# Init frame
 
 		# Configure columns & row
-		for i in [0, 1, 3]:
-			self.columnconfigure(i, weight=0)
-		self.columnconfigure(2, weight=1)
+		self.columnconfigure(0, weight=0, minsize=125)
+		self.columnconfigure(1, weight=1)
+		self.columnconfigure(2, weight=0, minsize=125)
 		self.rowconfigure(0, weight=1)
 
 		# Set up objects
-		self.button1 = ttk.Button(self, text='Draw Frame', command=button1_cmd)
-		self.button2 = ttk.Button(self, text='Test Canvas', command=button2_cmd)
+		self.status = ttk.Label(self, text='All good')
 		self.program_label = ttk.Label(self, text='GCI Practice')
 		self.version_label = ttk.Label(self, text=version)
 
 		# Grid out objects
-		self.button1.grid(column=0, row=0, sticky='NSW')
-		self.button2.grid(column=1, row=0, sticky='NSW')
-		self.program_label.grid(column=2, row=0, sticky='NS')
-		self.version_label.grid(column=3, row=0, sticky='NSE')
+		self.status.grid(column=0, row=0, sticky='NSW')
+		self.program_label.grid(column=1, row=0, sticky='NS')
+		self.version_label.grid(column=2, row=0, sticky='NSE')
 
 
 class ProblemManagement(ttk.Frame):
@@ -228,7 +225,7 @@ class ProblemManagement(ttk.Frame):
 
 
 class RadarScreen(tk.Canvas):
-	def __init__(self, disable_buttons: tuple, *args, **kwargs):
+	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)		# Create canvas
 
 		# Set up turtle
@@ -238,21 +235,36 @@ class RadarScreen(tk.Canvas):
 		self.draw.penup()
 
 		# Init variables
-		self.affect_buttons = disable_buttons
 		self.top_left = (-self.draw.screen.screensize()[0] // 2, self.draw.screen.screensize()[1] // 2)
 		self.scalar = 1
 		self.canv_size = (0, 0)
-		self.center = (0, 0)
+		self.canv_center = (0, 0)
+		self.plane_center = (0, 0)
+		self.planes = [(), (), ()]
 		self.drawing = False
 		self.ruler_down = False
 		self.ruler_coords = (0, 0)
-		self.bind('<Button-1>', func=self.ruler_place)
+		self.bind('<Button-1>', func=self._ruler_place)
+
+	def _bdraw_plane(self, plane, i: int) -> None:
+		self.draw.goto(self.bullseye_pos[0], self.bullseye_pos[1])
+		self.draw.setheading(90 - plane.bulls.bearing)
+		self.draw.forward(plane.bulls.dist * self.scalar)
+		self.draw.pendown()
+		self.draw.dot(5)
+		if plane.text:
+			self.draw.write(f'{i} - {plane.text}', font=('Arial', 11, 'normal'))
+		else:
+			self.draw.write(f'{i}', font=('Arial', 11, 'normal'))
+		self.draw.setheading(90 - plane.bulls.heading)
+		self.draw.forward(plane.speed * self.scalar)
+		self.draw.penup()
 
 	def _get_center(self) -> None:
 		self.canv_size = (self.winfo_width() - 5, self.winfo_height() - 6)
-		self.center = (self.top_left[0] + self.canv_size[0] / 2, self.top_left[1] - self.canv_size[1] / 2)
+		self.canv_center = (self.top_left[0] + self.canv_size[0] / 2, self.top_left[1] - self.canv_size[1] / 2)
 
-	def ruler_place(self, event):
+	def _ruler_place(self, event):
 		if not self.drawing:		# Don't allow if drawing a page
 			coords = (event.x + self.top_left[0] - 2, -event.y + self.top_left[1] + 2)		# Get mouse pos in draw reference
 			if self.ruler_down:		# If first dot is down
@@ -281,122 +293,68 @@ class RadarScreen(tk.Canvas):
 				self.ruler_coords = (coords, (coords[0] / self.scalar, coords[1] / self.scalar))   # Log canvas and radar coords
 				self.ruler_down = True		# Signal second dot down
 
-	def border(self) -> None:
-		# Disable affector buttons
-		for button in self.affect_buttons:
-			button.config(state='disabled')
-		self.drawing = True
+	def set_planes(self, allies, enemies, threats) -> None:
+		self.planes = [enemies, allies, threats]
 
-		# Operation
-		self._get_center()
-		self.draw.goto(self.top_left[0], self.top_left[1])
-		self.draw.pendown()
-		self.draw.goto(self.top_left[0], self.top_left[1] - self.canv_size[1])
-		self.draw.goto(self.top_left[0] + self.canv_size[0], self.top_left[1] - self.canv_size[1])
-		self.draw.goto(self.top_left[0] + self.canv_size[0], self.top_left[1])
-		self.draw.goto(self.top_left[0], self.top_left[1])
-		self.draw.penup()
-
-		# Enable affector buttons
-		for button in self.affect_buttons:
-			button.config(state='active')
-		self.drawing = False
-
-	def _bdraw_plane(self, plane, i: int, bullseye_pos: tuple[float, float]) -> None:
-		self.draw.goto(bullseye_pos[0], bullseye_pos[1])
-		self.draw.setheading(90 - plane.bulls.bearing)
-		self.draw.forward(plane.bulls.dist * self.scalar)
-		self.draw.pendown()
-		self.draw.dot(5)
-		if plane.text:
-			self.draw.write(f'{i} - {plane.text}', font=('Arial', 11, 'normal'))
-		else:
-			self.draw.write(f'{i}', font=('Arial', 11, 'normal'))
-		self.draw.setheading(90 - plane.bulls.heading)
-		self.draw.forward(plane.speed * self.scalar)
-		self.draw.penup()
-
-	def b_draw(self, allies: list, enemies: list, threats: list) -> None:
-		# Disable affector buttons
-		for button in self.affect_buttons:
-			button.config(state='disabled')
-		self.drawing = True
-		self.ruler_down = False
-
-		# Clears drawer
-		self.draw.clear()
-		self.draw.setheading(0)
-
-		# Updates canvas size
+	def set_scalar(self) -> None:
 		self._get_center()
 
-		# Process allies, enemies, and threats into coords for scaling
 		coords = [[0, 0]]
-		for i in allies + enemies + threats:
+		for i in [plane for faction in self.planes for plane in faction]:
 			coords.append((i.bulls.dist * cos(radians(90 - i.bulls.bearing)), i.bulls.dist * sin(radians(90 - i.bulls.bearing))))
 
-		if coords != [[0, 0]]:			# Saves the calculations (and errors) if no plane is on screen
+		if coords != [[0, 0]]:  # Saves the calculations (and errors) if no plane is on screen
 			# Calculates scalor
 			x_range = (max([i[0] for i in coords]), min([i[0] for i in coords]))
 			y_range = (max([i[1] for i in coords]), min([i[1] for i in coords]))
+			self.plane_center = (sum(x_range) / 2, sum(y_range) / 2)
 			great_scalar = max(((x_range[0] - x_range[1]) / self.canv_size[0], (y_range[0] - y_range[1]) / self.canv_size[1]))
 			self.scalar = uniform(0.6, 0.9) / great_scalar
+		else:
+			self.plane_center = (0, 0)
+			self.scalar = 1
 
-			# Get bullseye position and draw
-			plane_center = (sum(x_range) / 2, sum(y_range) / 2)
-			bullseye_pos = (self.center[0] - (plane_center[0] * self.scalar), self.center[1] - (plane_center[1] * self.scalar))
-			self.draw.goto(bullseye_pos[0], bullseye_pos[1])
+	def draw_bulls(self) -> None:
+		self.bullseye_pos = (self.canv_center[0] - (self.plane_center[0] * self.scalar),
+						self.canv_center[1] - (self.plane_center[1] * self.scalar))
+		self.draw.goto(self.bullseye_pos[0], self.bullseye_pos[1])
+		self.draw.pendown()
+		self.draw.dot(5)
+		self.draw.penup()
+		self.draw.sety(self.bullseye_pos[1] - round(2 * self.scalar))
+		self.draw.pendown()
+		self.draw.circle(round(2 * self.scalar), steps=6)
+		self.draw.penup()
+
+	def draw_planes(self) -> None:
+		i = 1
+		self.draw.color('red')
+		for plane in self.planes[0]:
+			self._bdraw_plane(plane, i)
+			i += 1
+
+		self.draw.color('blue')
+		for plane in self.planes[1]:
+			self._bdraw_plane(plane, i)
+			i += 1
+
+		self.draw.color('orange')
+		for sam in self.planes[2]:
+			self.draw.goto(self.bullseye_pos[0], self.bullseye_pos[1])
+			self.draw.setheading(90 - sam.bulls.bearing)
+			self.draw.forward(sam.bulls.dist * self.scalar)
 			self.draw.pendown()
 			self.draw.dot(5)
+			self.draw.write(sam.text, font=('Arial', 11, 'normal'))
 			self.draw.penup()
-			self.draw.sety(bullseye_pos[1] - round(2 * self.scalar))
+			self.draw.setheading(270)
+			self.draw.forward(sam.fire_range * self.scalar)
+			self.draw.setheading(0)
 			self.draw.pendown()
-			self.draw.circle(round(2 * self.scalar), steps=6)
+			self.draw.circle(sam.fire_range * self.scalar, steps=35)
 			self.draw.penup()
 
-			# Draw enemies, allies, and threats
-			i = 1
-			self.draw.color('red')
-			for plane in enemies:
-				self._bdraw_plane(plane, i, bullseye_pos)
-				i += 1
-
-			self.draw.color('blue')
-			for plane in allies:
-				self._bdraw_plane(plane, i, bullseye_pos)
-				i += 1
-
-			self.draw.color('orange')
-			for sam in threats:
-				self.draw.goto(bullseye_pos[0], bullseye_pos[1])
-				self.draw.setheading(90 - sam.bulls.bearing)
-				self.draw.forward(sam.bulls.dist * self.scalar)
-				self.draw.pendown()
-				self.draw.dot(5)
-				self.draw.write(sam.text, font=('Arial', 11, 'normal'))
-				self.draw.penup()
-				self.draw.setheading(270)
-				self.draw.forward(sam.fire_range * self.scalar)
-				self.draw.setheading(0)
-				self.draw.pendown()
-				self.draw.circle(sam.fire_range * self.scalar, steps=35)
-				self.draw.penup()
-
-			self.draw.color('black')
-		else:			# Else for if no planes on screen
-			self.draw.goto(self.center[0], self.center[1])
-			self.draw.pendown()
-			self.draw.dot(5)
-			self.draw.penup()
-			self.draw.sety(self.center[1] - 10)
-			self.draw.pendown()
-			self.draw.circle(10, steps=6)
-			self.draw.penup()
-
-		# Enable affector buttons
-		for button in self.affect_buttons:
-			button.config(state='active')
-		self.drawing = False
+		self.draw.color('black')
 
 
 class SettingsBox(ttk.Frame):
