@@ -30,7 +30,7 @@ class Plane:
 	def __init__(self, gen_mode: Literal['random', 'f_braa', 'h_braa', 't_braa'] = 'random',
 				 info_text: bool = True, bullseye: Bulls = None, target: Braa = None):
 		self.sign = avail_signs.pop(randint(0, len(avail_signs) - 1))
-		self.num = str(randint(1, 4))
+		self.num = randint(1, 4)
 		if info_text and gen_mode in ['random', 'f_braa']:
 			self.text = f'{self.sign.capitalize()} {self.num}'
 		else:
@@ -119,8 +119,9 @@ class LoadoutPlane(Plane):
 				else:
 					self.fuel += model['fuel_add']
 
-		self.answers = [self.sign + ' ' + self.num + '-1', self.name, self.mission, self.bulls.readable + '/' + str(self.bulls.dist),
-						' '.join([str(fox) for fox in self.foxs]), guns_bool, str(self.fuel / 10)]
+		self.answers = [self.sign + ' ' + str(self.num) + '-1', self.name, self.mission,
+						self.bulls.readable + '/' + str(self.bulls.dist), ' '.join([str(fox) for fox in self.foxs]),
+						guns_bool, str(self.fuel / 10)]
 
 
 class Sam:
@@ -190,17 +191,6 @@ class Window(ttk.Frame):
 			button.config(state='active')
 		self.radar.drawing = False
 
-	def clear_tables(self):
-		for table in [self.prob_man.braa_table, self.prob_man.bulls_table]:
-			for row in table:
-				for item in row:
-					item.config(text='')
-
-	def update_tables(self):
-		all_planes = hostile_list.val + friend_list.val + threat_list.val
-		self.prob_man.update_braa([plane.braa for plane in all_planes])
-		self.prob_man.update_bulls([plane.bulls for plane in all_planes])
-
 	def draw_radar(self):
 		self.radar.set_planes(friend_list.val, hostile_list.val, threat_list.val)
 		self.radar.set_scalar()
@@ -214,13 +204,14 @@ class Window(ttk.Frame):
 	def get_answers(self):
 		if problem_func == caution:
 			usr = self.answers.gen_answers
-			print(Response(usr, r'\w+ \d-\d \w+ caution \S+ (bullseye \d{3}( for | |/)\d+|braa \d{3} \d+)'))
+			return Response(usr, r'\w+ \d-\d \w+ caution \S+ (bullseye \d{3}( for | |/)\d+|braa \d{3} \d+)')
 		elif problem_func == threat:
 			usr = self.answers.gen_answers
-			print(Response(usr, r'\w+ \d-\d \w+ threat (bullseye \d{3}( for |/| )\d+ (at )?\d+ thousand track \w+ hostile|braa \d{3} \d+ \d+ thousand \w+( \w+)? hostile)'))
+			return Response(usr, r'\w+ \d-\d \w+ threat (bullseye \d{3}( for |/| )\d+ (at )?\d+ thousand track \w+ hostile|braa \d{3} \d+ \d+ thousand \w+( \w+)? hostile)')
 		elif problem_func == check_in:
 			usr = self.answers.check_answers
-			print(Response(usr, r'\w+ \d-\d \w+ (standby|(radar|negative) contact)'))
+			usr[-1] = Response(usr[-1], r'\w+ \d-\d \w+ (standby|(radar|negative) contact)')
+			return usr
 
 	def reset_answers(self):
 		self.answers.reset_colors()
@@ -229,6 +220,10 @@ class Window(ttk.Frame):
 				box.prompt()
 			except AttributeError:
 				box.delete(0, 'end')
+
+	def remove_corrections(self):
+		for label in self.prob_man.error_labels:
+			label.grid_remove()
 
 	def set_check_color(self, inds):
 		for i in range(len(self.answers.labels[:-1])):
@@ -282,21 +277,47 @@ def caution() -> None:
 	hostile_list.val = enemies
 	threat_list.val = [sol_sam]
 	solution_vals.val = (sol_plane, sol_sam)
-	update_planes.set()
+	draw_radar.set()
 
 
 def caution_answers() -> None:
+	usr_ans = app.get_answers()
 	sol_vals = solution_vals.val
 	sol_plane = sol_vals[0]
 	sol_sam = sol_vals[1]
-	expected_ans = [[sol_plane.sign, sol_plane.num + '-1', alias, 'caution', sol_sam.name, 'bullseye', sol_sam.bulls.readable, 'for', str(sol_sam.bulls.dist)],
-					[sol_plane.sign, sol_plane.num + '-1', alias, 'caution', sol_sam.sign, 'bullseye', sol_sam.bulls.readable, 'for', str(sol_sam.bulls.dist)],
-					[sol_plane.sign, sol_plane.num + '-1', alias, 'caution', sol_sam.name, 'braa', sol_sam.braa.readable, str(sol_sam.braa.dist)],
-					[sol_plane.sign, sol_plane.num + '-1', alias, 'caution', sol_sam.sign, 'braa', sol_sam.braa.readable, str(sol_sam.braa.dist)]]
-	if app.answers.gen_answers in expected_ans:
-		app.set_gen_color('green')
+
+	errors = []
+	if not usr_ans.sign:
+		errors.append('no_addr')
 	else:
+		if (usr_ans.sign, usr_ans.num) != (sol_plane.sign, sol_plane.num):
+			errors.append('call_id')
+		if usr_ans.alias != alias:
+			errors.append('self_id')
+	if usr_ans.sam_type not in [sol_sam.name.lower(), sol_sam.sign]:
+		errors.append('sam_type')
+	if usr_ans.braa:
+		errors.append('bad_braa')
+		if abs(usr_ans.braa.bearing - sol_sam.braa.bearing) > 3:
+			errors.append('bearing')
+		if abs(usr_ans.braa.dist - sol_sam.braa.dist) > 1:
+			errors.append('dist')
+	elif usr_ans.braa:
+		if abs(usr_ans.bulls.bearing - sol_sam.bulls.bearing) > 3:
+			errors.append('bearing')
+		if abs(usr_ans.bulls.dist - sol_sam.bulls.dist) > 1:
+			errors.append('dist')
+	else:
+		errors.append('no_loc')
+	if not usr_ans.form:
+		errors.append('caut_form')
+
+	app.prob_man.write_errors(errors)
+
+	if errors:
 		app.set_gen_color('red')
+	else:
+		app.set_gen_color('green')
 
 
 def check_in() -> None:
@@ -329,7 +350,7 @@ def check_in() -> None:
 	friend_list.val = friendlies
 	hostile_list.val = enemies
 	solution_vals.val = (sol_plane, on_screen)
-	update_planes.set()
+	draw_radar.set()
 
 	process.join()
 
@@ -338,8 +359,10 @@ def check_in_answers() -> None:
 	sol_vals = solution_vals.val
 	sol_plane = sol_vals[0]
 	on_screen = sol_vals[1]
-	usr_answers = app.answers.check_answers
+	usr_answers = app.get_answers()
+	usr_ans = usr_answers[-1]
 
+	errors = []
 	sucesses = []
 	for (ans, usr) in zip(sol_plane.answers, usr_answers[:-1]):
 		try:
@@ -349,13 +372,21 @@ def check_in_answers() -> None:
 			if usr == ans:
 				sucesses.append(usr_answers.index(usr))
 
-	if on_screen:
-		if usr_answers[-1] == [sol_plane.sign, sol_plane.num + '-1', alias, 'radar', 'contact']:
-			sucesses.append(len(usr_answers) - 1)
+	if not usr_ans.sign:
+		errors.append('no_addr')
 	else:
-		if usr_answers[-1] in [[sol_plane.sign, sol_plane.num + '-1', alias, 'standby'],
-							   [sol_plane.sign, sol_plane.num + '-1', alias, 'negative', 'contact']]:
-			sucesses.append(len(usr_answers) - 1)
+		if (usr_ans.sign, usr_ans.num) != (sol_plane.sign, sol_plane.num):
+			errors.append('call_id')
+		if usr_ans.alias != alias:
+			errors.append('self_id')
+	if usr_ans.contact != on_screen:
+		errors.append('contact')
+	if not usr_ans.form:
+		errors.append('chk_form')
+	if not errors:
+		sucesses.append(len(usr_answers) - 1)
+
+	app.prob_man.write_errors(errors)
 
 	app.set_check_color(sucesses)
 
@@ -378,27 +409,49 @@ def threat() -> None:
 	friend_list.val = friendlies
 	hostile_list.val = enemies
 	solution_vals.val = (sol_plane, sol_enemy)
-	update_planes.set()
+	draw_radar.set()
 
 
 def threat_answers() -> None:
-	usr_ans = app.answers.gen_answers
+	usr_ans = app.get_answers()
 	sol_vals = solution_vals.val
 	sol_origin = sol_vals[0]
 	sol_enemy = sol_vals[1]
-	expected_ans = [
-		[sol_origin.sign, sol_origin.num + '-1', alias, 'threat', 'braa', sol_enemy.braa.readable, str(sol_enemy.braa.dist),
-		 str(sol_enemy.braa.altitude), 'thousand', sol_enemy.braa.aspect, 'hostile'],
-		[sol_origin.sign, sol_origin.num + '-1', alias, 'threat', 'braa', sol_enemy.braa.readable, str(sol_enemy.braa.dist),
-		 str(sol_enemy.braa.altitude), 'thousand', sol_enemy.braa.aspect, 'track',  sol_enemy.braa.cardinal, 'hostile'],
-		[sol_origin.sign, sol_origin.num + '-1', alias, 'threat', 'bullseye', sol_enemy.bulls.readable, 'for',
-		 str(sol_enemy.bulls.dist), str(sol_enemy.bulls.altitude), 'thousand', 'track', sol_enemy.braa.cardinal, 'hostile']
-		]
 
-	if usr_ans in expected_ans:
-		app.set_gen_color('green')
+	errors = []
+	if not usr_ans.sign:
+		errors.append('no_addr')
 	else:
+		if (usr_ans.sign, usr_ans.num) != (sol_origin.sign, sol_origin.num):
+			errors.append('call_id')
+		if usr_ans.alias != alias:
+			errors.append('self_id')
+	if usr_ans.braa:
+		if abs(usr_ans.braa.bearing - sol_enemy.braa.bearing) > 3:
+			errors.append('bearing')
+		if abs(usr_ans.braa.dist - sol_enemy.braa.dist) > 1:
+			errors.append('dist')
+		if usr_ans.braa.altitude != sol_enemy.braa.altitude:
+			errors.append('altitude')
+		if usr_ans.braa.aspect != sol_enemy.braa.aspect:
+			errors.append('aspect')
+		if usr_ans.braa.cardinal:
+			if usr_ans.braa.cardinal != sol_enemy.braa.cardinal:
+				errors.append('cardinal')
+	if usr_ans.bulls:
+		errors.append('bad_bulls')
+	else:
+		errors.append('no_loc')
+	if not usr_ans.form:
+		errors.append('thr_form')
+
+	app.prob_man.write_errors(errors)
+
+	if errors:
 		app.set_gen_color('red')
+	else:
+		app.set_gen_color('green')
+
 
 
 def clear_vals() -> None:
@@ -409,7 +462,6 @@ def clear_vals() -> None:
 	hostile_list.val = []
 	threat_list.val = []
 	solution_vals.val = []
-	app.clear_tables()
 	global avail_signs
 	avail_signs = list(callsigns)
 
@@ -424,7 +476,7 @@ def test_draw() -> None:
 		choice([enemies, friendlies]).append(Plane())
 	friend_list.val = friendlies
 	hostile_list.val = enemies
-	update_planes.set()
+	app.draw_radar()
 	global avail_signs
 	avail_signs = list(callsigns)
 
@@ -434,10 +486,10 @@ if __name__ == '__main__':
 	mission_types = ['CAP', 'BAI', 'Strike', 'SEAD']
 	single_dict = {1: 'single', 2: 2, 3: 3, 4: 4}
 	trans_dict = TranslateDict()
-	trans_dict['9'] = 'niner'
+	trans_dict[9] = 'niner'
 	aspect_translate = {0.5: 'hot', 1.5: 'flanking', 2.5: 'beaming', 3.5: 'beaming', 4.5: 'drag', 5.5: 'drag'}
-	cardinal_translate = {0: 'north', 1: 'north east', 2: 'east', 3: 'south east',
-						  4: 'south', 5: 'south west', 6: 'west', 7: 'north west'}
+	cardinal_translate = {0: 'north', 1: 'northeast', 2: 'east', 3: 'southeast',
+						  4: 'south', 5: 'southwest', 6: 'west', 7: 'northwest'}
 
 	# Read configs
 	with open('callsigns.txt', 'r') as file:
@@ -469,7 +521,7 @@ if __name__ == '__main__':
 	# Set up env variables
 	check_answer = threading.Event()		# Flag for if a solution check is requested by user
 	new_problem = threading.Event()			# Flag for if a new problem is requested by user
-	update_planes = threading.Event()		# Flag for if the radar needs to with a new problem
+	draw_radar = threading.Event()			# Flag for if a new radar screen needs to be drawn
 	friend_list = LockVal([])				# Contains a list of all friendly planes on screen
 	hostile_list = LockVal([])				# Contains a list of all hostile planes
 	threat_list = LockVal([])				# Contains a list of all sam threats
@@ -508,7 +560,7 @@ if __name__ == '__main__':
 			new_problem.clear()		# Prevent infinite loop
 
 		if check_answer.is_set():
-			app.get_answers()
+			app.remove_corrections()
 			if problem_func == caution:
 				caution_answers()
 			elif problem_func == check_in:
@@ -517,11 +569,9 @@ if __name__ == '__main__':
 				threat_answers()
 			check_answer.clear()
 
-		# Update turtle
-		if update_planes.is_set():
-			app.update_tables()				# Update BRAA/Bullseye tables
-			app.draw_radar()				# Draw radar with problem vars
-			update_planes.clear()			# Prevent infinite loop
+		if draw_radar.is_set():
+			app.draw_radar()
+			draw_radar.clear()
 
 		# Do tkinter
 		root.update_idletasks()

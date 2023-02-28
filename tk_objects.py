@@ -71,10 +71,10 @@ class AnswerBox(ttk.Notebook):
 
 	@property
 	def check_answers(self):
-		answers = [i.get() for i in self.check_entries]			# Get values from all boxes
-		answers[-1] = [word.strip(',').lower() for word in answers[-1].split(' ')]			# Process response
-		answers[-2] = answers[-2].replace(',', '.')
-		answers.insert(5, ('selected' in self.guns.state()))
+		answers = [i.get() for i in self.check_entries]				# Get values from all boxes
+		answers[-1] = answers[-1].lower().replace(',', '')			# Process text response
+		answers[-2] = answers[-2].replace(',', '.')					# Process fuel decimal/comma
+		answers.insert(5, ('selected' in self.guns.state()))		# Process checkbutton
 		return answers
 
 	def reset_colors(self):
@@ -138,6 +138,32 @@ class DefaultEntry(tk.Entry):
 			self.config(fg='#999999', justify=self.default_justify)
 
 
+class HoverText(tk.Label):
+	def __init__(self, hover_text: str, master, *args, **kwargs):
+		self.master = master
+		super().__init__(master, *args, **kwargs)
+		self.hover_text = hover_text
+		self.bind('<Enter>', self._create_tip)
+		self.bind('<Leave>', self._destroy_tip)
+
+	def _create_tip(self, event):
+		self.hover = tk.Toplevel(self)
+		self.hover_label = tk.Label(self.hover, text=self.hover_text, bg='#dddddd', relief='solid', borderwidth=1)
+		self.hover_label.grid(column=0, row=0, ipadx=1, ipady=1)
+		self.hover.wm_overrideredirect(True)
+		self.hover_label.update()
+		try:			# Occasionally fails to get winfo_width of hover_label, maybe tkinter threading being wierd?
+			pos = (self.winfo_rootx() - self.hover_label.winfo_width(), self.winfo_rooty() + self.winfo_height() // 2 - self.hover_label.winfo_height() // 2)
+			self.hover.geometry(f"""+{pos[0]}+{pos[1]}""")
+		except tk.TclError:
+			self.hover.destroy()
+			self.hover = None
+
+	def _destroy_tip(self, event):
+		if self.hover:
+			self.hover.destroy()
+
+
 class InfoBar(ttk.Frame):
 	def __init__(self, version: str, *args, **kwargs) -> None:
 		super().__init__(*args, **kwargs)		# Init frame
@@ -164,7 +190,7 @@ class ProblemManagement(ttk.Frame):
 		super().__init__(*args, **kwargs)		# Init frame
 		self.grid_propagate(False)
 
-		self.aspect_shorthand = {'hot': 'H', 'flanking': 'F', 'beaming': 'B', 'drag': 'D', None: 'N/A'}
+		self.error_labels = []
 
 		# Configure rows and columns
 		for i in range(3):
@@ -177,51 +203,111 @@ class ProblemManagement(ttk.Frame):
 		self.button_m = ttk.Button(self, text='New', command=cmd_m)
 		self.button_r = ttk.Button(self, text='Redraw', command=cmd_r)
 
-		# Table / TBD
-		self.table = ttk.Notebook(self)
-
-		self.braa = ttk.Frame(self)				# Set up pages
-		self.bulls = ttk.Frame(self)
-		for page in [self.braa, self.bulls]:    # Configure rows and columns
-			for i in range(4):
-				page.columnconfigure(i, weight=1)
-			for i in range(8):
-				page.rowconfigure(i, weight=1)
-			ttk.Label(page, text='Bearing').grid(column=0, row=0, sticky='NSEW')				# Grid out shared headers
-			ttk.Label(page, text='Range').grid(column=1, row=0, sticky='NSEW')
-			ttk.Label(page, text='Altitude').grid(column=2, row=0, sticky='NSEW')
-		ttk.Label(self.bulls, text='Heading').grid(column=3, row=0, sticky='NSEW')				# Grid out individual headers
-		ttk.Label(self.braa, text='Aspect').grid(column=3, row=0, sticky='NSEW')
-
-		self.bulls_table = [[ttk.Label(self.bulls) for __ in range(4)] for _ in range(7)]		# Set up label tables
-		self.braa_table = [[ttk.Label(self.braa) for __ in range(4)] for _ in range(7)]
-		for page in [self.bulls_table, self.braa_table]:			# Grid out labels
-			for i in range(len(page)):
-				for j in range(len(page[0])):
-					page[i][j].grid(column=j, row=i + 1)
-
-		self.table.add(self.bulls, text='Bullseye')
-		self.table.add(self.braa, text='BRAA')
+		# Phrase correction
+		self.errors = ()
+		self.corrections = ttk.Frame(self)
+		self.corrections.columnconfigure(0, weight=3, minsize=150)
+		self.corrections.columnconfigure(1, weight=1)
+		self.error_count = ttk.Label(self.corrections, text='')										# Error count text
+		self.error_expand = ttk.Button(self.corrections, text='Show', command=self._expand_errors)  # Error expand button
+		self.no_addr = HoverText('Expected: "<Name> <Num>-1, <Alias>"\nEx. "Simple 1-1, Magic"',    # Begin error label creation
+								 self.corrections, text='No reciever or sender')
+		self.call_id = HoverText('Expected: "<Name> <Num>-1, <Alias>"\nEx. "Simple 1-1, Magic"',
+								 self.corrections, text='Incorrect plane address')
+		self.self_id = HoverText('Expected: "<Name> <Num>-1, <Alias>"\nEx. "Simple 1-1, Magic"',
+								 self.corrections, text='Incorrect self reference')
+		self.sam_type = HoverText('Expected: "caution, <Name>"\nEx. "caution, sa-15"',
+								  self.corrections, text='Incorrect SAM name')
+		self.contact = HoverText('Expected negative or radar contact\nEx. "<Name> <Num>-1, <Alias>, radar contact"',
+								 self.corrections, text='Contact erroniously reported')
+		self.no_loc = HoverText('Expected BRAA or B/E\nEx. "braa 123 34 45 thousand, hot"',
+								self.corrections, text='No location (BRAA or B/E) given')
+		self.bad_braa = HoverText('Expected B/E location\nEx. "bullseye 123 for 34 at 45 thousand track south"',
+								  self.corrections, text='Given BRAA instead of B/E')
+		self.bad_bulls = HoverText('Expected BRAA location\nEx. "braa 123 34 45 thousand, hot"',
+								   self.corrections, text='Given B/E instead of BRAA')
+		self.bearing = HoverText('Given incorrect bearing\nEx. "braa <Bearing> 34 45 thousand, hot"',
+								 self.corrections, text='Given incorrect bearing')
+		self.distance = HoverText('Given incorrect distance\nEx. "braa 123 <Distance> 45 thousand, hot"',
+								  self.corrections, text='Given incorrect distance')
+		self.altitude = HoverText('Given incorrect altitude\nEx. "braa 123 34 <Altitude> thousand, hot"',
+								  self.corrections, text='Given incorrect altitude')
+		self.aspect = HoverText('Given incorrect aspcet\nEx. "braa 123 34 45 thousand, <Aspect>"',
+								self.corrections, text='Given incorrect aspect')
+		self.cardinal = HoverText('Given incorrect cardinal direction\nEx. "braa 123 34 45 thousand, flanking <Cardinal>"',
+								  self.corrections, text='Given incorrect cardinal direction')
+		self.caut_form = HoverText('Expected caution call format\nEx. "<Name> <Num>-1, <Alias>, caution <SAM>, <B/E data>"',
+								   self.corrections, text='Given incorrect format')
+		self.thr_form = HoverText('Expected threat call format\nEx. "<Name> <Num>-1, <Alias>, threat <BRAA data>, hostile"',
+								  self.corrections, text='Given incorrect format')
+		self.chk_form = HoverText('Expected check-in call format\nEx. "<Name> <Num>-1, <Alias>, (radar or negative) contact"',
+								  self.corrections, text='Given incorrect format')
+		self.error_labels = (self.call_id, self.self_id, self.sam_type, self.contact, self.no_loc, self.bad_braa,
+							 self.bad_bulls, self.bearing, self.distance, self.altitude, self.aspect, self.cardinal,
+							 self.caut_form, self.thr_form, self.chk_form)
 
 		# Grid out
-		self.table.grid(column=0, columnspan=3, row=0, sticky='NSEW')
+		self.corrections.grid(column=0, columnspan=3, row=0, sticky='NSEW')
 		self.button_l.grid(column=0, row=1, sticky='NSEW')
 		self.button_m.grid(column=1, row=1, sticky='NSEW')
 		self.button_r.grid(column=2, row=1, sticky='NSEW')
 
-	def update_bulls(self, bulls_list) -> None:
-		for (row, bulls) in zip(self.bulls_table, bulls_list):
-			row[0].config(text=bulls.bearing)
-			row[1].config(text=bulls.dist)
-			row[2].config(text=bulls.altitude)
-			row[3].config(text=bulls.heading)
+	def write_errors(self, error_types: list):
+		self.errors = tuple(error_types)
+		self.error_count.config(text=f'{len(error_types)} errors detected')
+		self.error_count.grid(column=0, row=0, sticky='NSW')
+		self.error_expand.grid(column=1, row=0, sticky='EW')
 
-	def update_braa(self, braa_list) -> None:
-		for (row, braa) in zip(self.braa_table, braa_list):
-			row[0].config(text=braa.bearing)
-			row[1].config(text=braa.dist)
-			row[2].config(text=braa.altitude)
-			row[3].config(text=self.aspect_shorthand[braa.aspect])
+	def _expand_errors(self):		# TODO: Re-write with pre-made error objects for hover labels
+		row = 1
+		if 'no_addr' in self.errors:
+			self.no_addr.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'call_id' in self.errors:
+			self.call_id.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'self_id' in self.errors:
+			self.self_id.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'sam_type' in self.errors:
+			self.sam_type.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'contact' in self.errors:
+			self.contact.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'no_loc' in self.errors:
+			self.no_loc.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'bad_braa' in self.errors:
+			self.bad_braa.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'bad_bulls' in self.errors:
+			self.bad_bulls.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'bearing' in self.errors:
+			self.bearing.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'dist' in self.errors:
+			self.distance.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'altitude' in self.errors:
+			self.altitude.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'aspect' in self.errors:
+			self.aspect.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'cardinal' in self.errors:
+			self.cardinal.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'caut_form' in self.errors:
+			self.caut_form.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'thr_form' in self.errors:
+			self.thr_form.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
+		if 'chk_form' in self.errors:
+			self.chk_form.grid(column=0, columnspan=2, row=row, sticky='NSW')
+			row += 1
 
 
 class RadarScreen(tk.Canvas):
@@ -246,16 +332,16 @@ class RadarScreen(tk.Canvas):
 		self.ruler_coords = (0, 0)
 		self.bind('<Button-1>', func=self._ruler_place)
 
-	def _bdraw_plane(self, plane, i: int) -> None:
+	def _bdraw_plane(self, plane) -> None:
 		self.draw.goto(self.bullseye_pos[0], self.bullseye_pos[1])
 		self.draw.setheading(90 - plane.bulls.bearing)
 		self.draw.forward(plane.bulls.dist * self.scalar)
 		self.draw.pendown()
 		self.draw.dot(5)
 		if plane.text:
-			self.draw.write(f'{i} - {plane.text}', font=('Arial', 11, 'normal'))
+			self.draw.write(f'{plane.text} - {plane.bulls.altitude}', font=('Arial', 11, 'normal'))
 		else:
-			self.draw.write(f'{i}', font=('Arial', 11, 'normal'))
+			self.draw.write(f'{plane.bulls.altitude}', font=('Arial', 11, 'normal'))
 		self.draw.setheading(90 - plane.bulls.heading)
 		self.draw.forward(plane.speed * self.scalar)
 		self.draw.penup()
@@ -327,16 +413,13 @@ class RadarScreen(tk.Canvas):
 		self.draw.penup()
 
 	def draw_planes(self) -> None:
-		i = 1
 		self.draw.color('red')
 		for plane in self.planes[0]:
-			self._bdraw_plane(plane, i)
-			i += 1
+			self._bdraw_plane(plane)
 
 		self.draw.color('blue')
 		for plane in self.planes[1]:
-			self._bdraw_plane(plane, i)
-			i += 1
+			self._bdraw_plane(plane)
 
 		self.draw.color('orange')
 		for sam in self.planes[2]:
