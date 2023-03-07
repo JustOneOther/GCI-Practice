@@ -72,6 +72,14 @@ class Response:
 			self.contact = (contact[1] == 'radar')
 		if sam := re.search(r'caution (\S+)', phrase):
 			self.sam_type = sam[1]
+		if state := re.search(r'(\d \d \d) (\+|-|plus|minus) (\d+(\.|,)\d)', phrase):
+			self.foxs = [int(i) for i in state[1].split(' ')]
+			self.guns = (state[2] in ['+', 'plus'])
+			self.fuel = int(state[3].replace(state[4], ''))
+		if mission := re.search(r'(single|[2-4]) ship (\S+) for (\w+)', phrase):
+			self.plane_count = mission[1]
+			self.model = mission[2].lower()
+			self.mission = mission[3]
 
 	def __getattr__(self, item):
 		return None

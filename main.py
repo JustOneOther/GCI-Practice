@@ -84,10 +84,11 @@ class Plane:
 class LoadoutPlane(Plane):
 	def __init__(self):
 		super().__init__(info_text=False)
+		self.count = randint(1, 4)
 		model = choice(planes)
 		self.name = model['name']
 		self.guns = choices(['plus', 'minus'], weights=[.8, .2])[0]
-		guns_bool = self.guns == 'plus'
+		self.guns_bool = (self.guns == 'plus')
 		self.mission = choice(mission_types)
 		self.foxs = [0, 0, 0]
 		self.fuel = randint(int(model['fuel_max'] / 2), model['fuel_max'])
@@ -118,10 +119,6 @@ class LoadoutPlane(Plane):
 					self.foxs[chosen_payload[0]] += chosen_payload[1]
 				else:
 					self.fuel += model['fuel_add']
-
-		self.answers = [self.sign + ' ' + str(self.num) + '-1', self.name, self.mission,
-						self.bulls.readable + '/' + str(self.bulls.dist), ' '.join([str(fox) for fox in self.foxs]),
-						guns_bool, str(self.fuel / 10)]
 
 
 class Sam:
@@ -203,34 +200,40 @@ class Window(ttk.Frame):
 
 	def get_answers(self):
 		if problem_func == caution:
-			usr = self.answers.gen_answers
+			usr = self.answers.answer_box
 			return Response(usr, r'\w+ \d-\d \w+ caution \S+ (bullseye \d{3}( for | |/)\d+|braa \d{3} \d+)')
 		elif problem_func == threat:
-			usr = self.answers.gen_answers
+			usr = self.answers.answer_box
 			return Response(usr, r'\w+ \d-\d \w+ threat (bullseye \d{3}( for |/| )\d+ (at )?\d+ thousand track \w+ hostile|braa \d{3} \d+ \d+ thousand \w+( \w+)? hostile)')
 		elif problem_func == check_in:
-			usr = self.answers.check_answers
-			usr[-1] = Response(usr[-1], r'\w+ \d-\d \w+ (standby|(radar|negative) contact)')
+			usr = self.answers.answer_box
+			usr = Response(usr, r'\w+ \d-\d \w+ (negative contact|radar contact (single|[2-4]) ship \S+ for \w+ \d \d \d (\+|-|plus|minus) \d+(\.|,)\d)')
 			return usr
 
 	def reset_answers(self):
-		self.answers.reset_colors()
-		for box in self.answers.answer_boxes:
-			try:
-				box.prompt()
-			except AttributeError:
-				box.delete(0, 'end')
+		self.answers.gen_text.config(fg='black')
+		self.answers.gen_entry.prompt()
+		self.remove_corrections()
 
 	def remove_corrections(self):
-		for label in self.prob_man.error_labels:
+		for label in self.prob_man.error_labels.values():
 			label.grid_remove()
+		self.prob_man.solution_exp.grid_remove()
+		self.prob_man.error_expand.grid_remove()
+		self.prob_man.error_count.grid_remove()
+		self.prob_man.answer_label.grid_remove()
 
-	def set_check_color(self, inds):
-		for i in range(len(self.answers.labels[:-1])):
-			if i in inds:
-				self.answers.labels[i].config(fg='green')
+	def set_corrections(self, errors, ans1, ans2):
+		self.prob_man.write_errors(errors)
+		if problem_func == caution:
+			self.prob_man.answer_text = f'{ans1.sign.capitalize()} {ans1.num}-1, {alias}, caution {ans2.text}, bullseye {ans2.bulls.readable} for {ans2.bulls.dist}'
+		elif problem_func == threat:
+			self.prob_man.answer_text = f'{ans1.sign.capitalize()} {ans1.num}-1, {alias}, threat braa {ans2.braa.readable}, {ans2.braa.dist}, {ans2.braa.altitude} thousand, {ans2.braa.aspect}, hostile'
+		elif problem_func == check_in:
+			if ans2:
+				self.prob_man.answer_text = f'{ans1.sign.capitalize()} {ans1.num}-1, {alias}, radar contact {single_dict[ans1.count]} ship {ans1.name.upper()} for {ans1.mission}, {" ".join((str(i) for i in ans1.foxs))} {ans1.guns}, {ans1.fuel / 10}'
 			else:
-				self.answers.labels[i].config(fg='red')
+				self.prob_man.answer_text = f'{ans1.sign.capitalize()} {ans1.num}-1, {alias}, negative contact'
 
 	def set_gen_color(self, color):
 		self.answers.gen_text.config(fg=color)
@@ -312,7 +315,7 @@ def caution_answers() -> None:
 	if not usr_ans.form:
 		errors.append('caut_form')
 
-	app.prob_man.write_errors(errors)
+	app.set_corrections(errors, sol_plane, sol_sam)
 
 	if errors:
 		app.set_gen_color('red')
@@ -324,7 +327,7 @@ def check_in() -> None:
 	sol_plane = LoadoutPlane()
 
 	phrase = f"""
-		{alias}, {sol_plane.sign} {trans_dict[sol_plane.num]} 1; {single_dict[randint(1, 4)]} ship {sol_plane.name} checking \
+		{alias}, {sol_plane.sign} {trans_dict[sol_plane.num]} 1; {single_dict[sol_plane.count]} ship {sol_plane.name} checking \
 		in for {sol_plane.mission}; bullseye {' '.join([i for i in sol_plane.bulls.readable])} for {sol_plane.bulls.dist}; \
 		{sol_plane.foxs[0]} {sol_plane.foxs[1]} {sol_plane.foxs[2]}, {sol_plane.guns}, {sol_plane.fuel // 10} decimal \
 		{sol_plane.fuel % 10}
@@ -359,19 +362,9 @@ def check_in_answers() -> None:
 	sol_vals = solution_vals.val
 	sol_plane = sol_vals[0]
 	on_screen = sol_vals[1]
-	usr_answers = app.get_answers()
-	usr_ans = usr_answers[-1]
+	usr_ans = app.get_answers()
 
 	errors = []
-	sucesses = []
-	for (ans, usr) in zip(sol_plane.answers, usr_answers[:-1]):
-		try:
-			if usr.lower() == ans.lower():
-				sucesses.append(usr_answers.index(usr))
-		except AttributeError:
-			if usr == ans:
-				sucesses.append(usr_answers.index(usr))
-
 	if not usr_ans.sign:
 		errors.append('no_addr')
 	else:
@@ -381,14 +374,25 @@ def check_in_answers() -> None:
 			errors.append('self_id')
 	if usr_ans.contact != on_screen:
 		errors.append('contact')
+	if usr_ans.foxs != sol_plane.foxs:
+		errors.append('foxs')
+	if usr_ans.guns != sol_plane.guns_bool:
+		errors.append('guns')
+	if usr_ans.fuel != sol_plane.fuel:
+		errors.append('fuel')
+	if usr_ans.plane_count != single_dict[sol_plane.count]:
+		errors.append('count')
+	if usr_ans.model != sol_plane.name:
+		errors.append('model')
+	if usr_ans.mission:			# Make sure mission isn't NoneType
+		if usr_ans.mission.lower() != sol_plane.mission.lower():
+			errors.append('mission')
+	else:
+		errors.append('mission')
 	if not usr_ans.form:
 		errors.append('chk_form')
-	if not errors:
-		sucesses.append(len(usr_answers) - 1)
 
-	app.prob_man.write_errors(errors)
-
-	app.set_check_color(sucesses)
+	app.set_corrections(errors, sol_plane, on_screen)
 
 
 def threat() -> None:
@@ -438,14 +442,14 @@ def threat_answers() -> None:
 		if usr_ans.braa.cardinal:
 			if usr_ans.braa.cardinal != sol_enemy.braa.cardinal:
 				errors.append('cardinal')
-	if usr_ans.bulls:
+	elif usr_ans.bulls:
 		errors.append('bad_bulls')
 	else:
 		errors.append('no_loc')
 	if not usr_ans.form:
 		errors.append('thr_form')
 
-	app.prob_man.write_errors(errors)
+	app.set_corrections(errors, sol_origin, sol_enemy)
 
 	if errors:
 		app.set_gen_color('red')
@@ -484,7 +488,7 @@ def test_draw() -> None:
 if __name__ == '__main__':
 	# Constant variables and useful dictionaries
 	mission_types = ['CAP', 'BAI', 'Strike', 'SEAD']
-	single_dict = {1: 'single', 2: 2, 3: 3, 4: 4}
+	single_dict = {1: 'single', 2: '2', 3: '3', 4: '4'}
 	trans_dict = TranslateDict()
 	trans_dict[9] = 'niner'
 	aspect_translate = {0.5: 'hot', 1.5: 'flanking', 2.5: 'beaming', 3.5: 'beaming', 4.5: 'drag', 5.5: 'drag'}
@@ -527,10 +531,7 @@ if __name__ == '__main__':
 	threat_list = LockVal([])				# Contains a list of all sam threats
 	solution_vals = LockVal(())				# Contains relevant values for the solution
 
-	problem_note = TranslateDict()
-	problem_note[caution] = lambda: app.answers.select(0)
-	problem_note[check_in] = lambda: app.answers.select(1)
-	problem_note[threat] = lambda: app.answers.select(0)
+	problem_types = (caution, check_in, threat)
 
 	problem_func = do_nothing				# Set up dummy problem thread to prevent error on first problem
 	problem = threading.Thread(target=problem_func)
@@ -551,9 +552,8 @@ if __name__ == '__main__':
 
 			# Get and run new problem
 			problem_func = app.settings.get_problem()
-			problem_note[problem_func]()						# Set correct page in problem bar
 			app.reset_answers()  								# Reset answer boxes and labels
-			if problem_func in list(problem_note.keys()):
+			if problem_func in problem_types:
 				problem = threading.Thread(target=problem_func)
 				problem.start()
 
