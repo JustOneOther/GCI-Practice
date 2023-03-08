@@ -367,12 +367,15 @@ def check_in_answers() -> None:
 			errors.append('self_id')
 	if usr_ans.contact != on_screen:
 		errors.append('contact')
-	if usr_ans.foxs != sol_plane.foxs:
-		errors.append('foxs')
-	if usr_ans.guns != sol_plane.guns_bool:
-		errors.append('guns')
-	if usr_ans.fuel != sol_plane.fuel:
-		errors.append('fuel')
+	if [None, None, None] == [usr_ans.foxs, usr_ans.guns, usr_ans.fuel]:
+		errors.append('no_state')
+	else:
+		if usr_ans.foxs != sol_plane.foxs:
+			errors.append('foxs')
+		if usr_ans.guns != sol_plane.guns_bool:
+			errors.append('guns')
+		if usr_ans.fuel != sol_plane.fuel:
+			errors.append('fuel')
 	if usr_ans.plane_count != single_dict[sol_plane.count]:
 		errors.append('count')
 	if usr_ans.model != sol_plane.name:
