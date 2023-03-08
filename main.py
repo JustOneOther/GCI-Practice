@@ -305,7 +305,7 @@ def caution_answers() -> None:
 			errors.append('bearing')
 		if abs(usr_ans.braa.dist - sol_sam.braa.dist) > 1:
 			errors.append('dist')
-	elif usr_ans.braa:
+	elif usr_ans.bulls:
 		if abs(usr_ans.bulls.bearing - sol_sam.bulls.bearing) > 3:
 			errors.append('bearing')
 		if abs(usr_ans.bulls.dist - sol_sam.bulls.dist) > 1:
@@ -444,6 +444,15 @@ def threat_answers() -> None:
 				errors.append('cardinal')
 	elif usr_ans.bulls:
 		errors.append('bad_bulls')
+		if abs(usr_ans.bulls.bearing - sol_enemy.bulls.bearing) > 3:
+			errors.append('bearing')
+		if abs(usr_ans.bulls.dist - sol_enemy.bulls.dist) > 1:
+			errors.append('dist')
+		if usr_ans.bulls.altitude != sol_enemy.bulls.altitude:
+			errors.append('altitude')
+		if usr_ans.braa.cardinal:
+			if usr_ans.braa.cardinal != sol_enemy.braa.cardinal:
+				errors.append('cardinal')
 	else:
 		errors.append('no_loc')
 	if not usr_ans.form:
