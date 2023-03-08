@@ -153,7 +153,7 @@ class Window(ttk.Frame):
 		self.rowconfigure(3, weight=0, minsize=100)
 
 		# Infobar
-		self.infobar = tk_objects.InfoBar('v0.4.0-alpha', self)
+		self.infobar = tk_objects.InfoBar('v0.4.1-alpha', self)
 		self.infobar.grid(column=0, row=0, sticky='NSEW', padx=5)
 
 		# Problem management
@@ -168,7 +168,7 @@ class Window(ttk.Frame):
 		# Settings
 		self.settings = tk_objects.SettingsBox(tts.tts_set_speed, self, borderwidth=4, relief='ridge')
 		self.settings.grid(column=1, row=0, rowspan=2, sticky='NSEW')
-		self.settings.set_funcs(check_in, threat, caution, lambda: self.status_write('Select a problem type'))
+		self.settings.set_funcs(check_in, threat, caution, do_nothing)
 
 		# Answer bar
 		self.answers = tk_objects.AnswerBox(sr_key, self)
@@ -201,13 +201,13 @@ class Window(ttk.Frame):
 	def get_answers(self):
 		if problem_func == caution:
 			usr = self.answers.answer_box
-			return Response(usr, r'\w+ \d-\d \w+ caution \S+ (bullseye \d{3}( for | |/)\d+|braa \d{3} \d+)')
+			return Response(usr, r'\w+ \d-\d \w+ caution \S+ ((bullseye|b/e) \d{3}( for | |/)\d+|braa \d{3}( |/)\d+)$')
 		elif problem_func == threat:
 			usr = self.answers.answer_box
-			return Response(usr, r'\w+ \d-\d \w+ threat (bullseye \d{3}( for |/| )\d+ (at )?\d+ thousand track \w+ hostile|braa \d{3} \d+ \d+ thousand \w+( \w+)? hostile)')
+			return Response(usr, r'\w+ \d-\d \w+ threat ((bullseye|b/e) \d{3}( for |/| )\d+ (at )?\d+ thousand track \w+ hostile|braa \d{3}( |/)\d+ \d+ thousand \w+( \w+)? hostile)$')
 		elif problem_func == check_in:
 			usr = self.answers.answer_box
-			usr = Response(usr, r'\w+ \d-\d \w+ (negative contact|radar contact (single|[2-4]) ship \S+ for \w+ \d \d \d (\+|-|plus|minus) \d+(\.|,)\d)')
+			usr = Response(usr, r'\w+ \d-\d \w+ (negative contact|radar contact (single|[2-4]) ship \S+ for \w+ \d \d \d (\+|-|plus|minus) \d+(\.|,)\d)$')
 			return usr
 
 	def reset_answers(self):
@@ -225,6 +225,10 @@ class Window(ttk.Frame):
 
 	def set_corrections(self, errors, ans1, ans2):
 		self.prob_man.write_errors(errors)
+		if errors:
+			self.answers.gen_text.config(fg='red')
+		else:
+			self.answers.gen_text.config(fg='green')
 		if problem_func == caution:
 			self.prob_man.answer_text = f'{ans1.sign.capitalize()} {ans1.num}-1, {alias}, caution {ans2.text}, bullseye {ans2.bulls.readable} for {ans2.bulls.dist}'
 		elif problem_func == threat:
@@ -234,12 +238,6 @@ class Window(ttk.Frame):
 				self.prob_man.answer_text = f'{ans1.sign.capitalize()} {ans1.num}-1, {alias}, radar contact {single_dict[ans1.count]} ship {ans1.name.upper()} for {ans1.mission}, {" ".join((str(i) for i in ans1.foxs))} {ans1.guns}, {ans1.fuel / 10}'
 			else:
 				self.prob_man.answer_text = f'{ans1.sign.capitalize()} {ans1.num}-1, {alias}, negative contact'
-
-	def set_gen_color(self, color):
-		self.answers.gen_text.config(fg=color)
-
-	def status_write(self, msg: str):
-		self.infobar.status.config(text=msg)
 
 
 def do_nothing() -> None:
@@ -316,11 +314,6 @@ def caution_answers() -> None:
 		errors.append('caut_form')
 
 	app.set_corrections(errors, sol_plane, sol_sam)
-
-	if errors:
-		app.set_gen_color('red')
-	else:
-		app.set_gen_color('green')
 
 
 def check_in() -> None:
@@ -450,8 +443,8 @@ def threat_answers() -> None:
 			errors.append('dist')
 		if usr_ans.bulls.altitude != sol_enemy.bulls.altitude:
 			errors.append('altitude')
-		if usr_ans.braa.cardinal:
-			if usr_ans.braa.cardinal != sol_enemy.braa.cardinal:
+		if usr_ans.bulls.cardinal:
+			if usr_ans.bulls.cardinal != sol_enemy.braa.cardinal:
 				errors.append('cardinal')
 	else:
 		errors.append('no_loc')
@@ -459,12 +452,6 @@ def threat_answers() -> None:
 		errors.append('thr_form')
 
 	app.set_corrections(errors, sol_origin, sol_enemy)
-
-	if errors:
-		app.set_gen_color('red')
-	else:
-		app.set_gen_color('green')
-
 
 
 def clear_vals() -> None:

@@ -215,7 +215,7 @@ class ProblemManagement(ttk.Frame):
 			'bad_braa': self.bad_braa,
 			'bad_bulls': self.bad_bulls,
 			'bearing': self.bearing,
-			'distance': self.distance,
+			'dist': self.distance,
 			'altitude': self.altitude,
 			'aspect': self.aspect,
 			'cardinal': self.cardinal,
