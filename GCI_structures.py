@@ -58,16 +58,16 @@ class Response:
 			self.sign = ident[1]
 			self.num = int(ident[2])
 			self.alias = ident[3]
-		if braa := re.search(r'braa (\d{3}) (\d+)', phrase):		# Searches for and parses braa call
+		if braa := re.search(r'braa (\d{3})( |/)(\d+)', phrase):		# Searches for and parses braa call
 			if air := re.match(r' (\d+) thousand (\w+)( north\w*| south\w*)?', phrase[braa.end():]):
-				self.braa = Braa(int(braa[1]), int(braa[2]), int(air[1]), None, air[2], air[3])
+				self.braa = Braa(int(braa[1]), int(braa[3]), int(air[1]), None, air[2], air[3])
 			else:
-				self.braa = Braa(int(braa[1]), int(braa[2]), None, None, None, None)
-		if bulls := re.search(r'bullseye (\d{3})(( for)? |/| )(\d+)', phrase):		# Searches for and parses bulls call
+				self.braa = Braa(int(braa[1]), int(braa[3]), None, None, None, None)
+		if bulls := re.search(r'(bullseye|b/e) (\d{3})( for |/| )(\d+)', phrase):		# Searches for and parses bulls call
 			if air := re.match(r' (at )?(\d+) thousand track( north\w*| south\w*)', phrase[bulls.end():]):		# Checks if bulls is for an air element
-				self.bulls = Braa(int(bulls[1]), int(bulls[4]), int(air[2]), None, None, air[3])
+				self.bulls = Braa(int(bulls[2]), int(bulls[4]), int(air[2]), None, None, air[3])
 			else:
-				self.bulls = Bulls(int(bulls[1]), int(bulls[4]), None, None)
+				self.bulls = Bulls(int(bulls[2]), int(bulls[4]), None, None)
 		if contact := re.search(r'standby|(\w+) contact', phrase):		# Searches for recognition of plane (sby, rdr/neg contact)
 			self.contact = (contact[1] == 'radar')
 		if sam := re.search(r'caution (\S+)', phrase):

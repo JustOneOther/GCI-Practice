@@ -188,6 +188,8 @@ class ProblemManagement(ttk.Frame):
 								  self.corrections, text='Given incorrect cardinal direction')
 		self.contact = HoverText('Expected negative or radar contact\nEx. "<Name> <Num>-1, <Alias>, radar contact"',
 								 self.corrections, text='Contact erroniously reported')
+		self.no_state = HoverText('Expected state readback\nFormat: "<Name> <Num>-1, <Alias>, (radar or negat<Fox-3>, <Fox-1>, <Fox-2>, <Guns>, <Fuel>"',
+								  self.corrections, text='No state readback')
 		self.foxs = HoverText('Incorrect fox count\nEx. "<Fox-3>, <Fox-1>, <Fox-2>, plus, 7.3"',
 								 self.corrections, text='Incorrect fox count')
 		self.guns = HoverText('Incorrect guns state\nEx. "4, 0, 2, (plus or minus), 7.3"',
@@ -215,11 +217,12 @@ class ProblemManagement(ttk.Frame):
 			'bad_braa': self.bad_braa,
 			'bad_bulls': self.bad_bulls,
 			'bearing': self.bearing,
-			'distance': self.distance,
+			'dist': self.distance,
 			'altitude': self.altitude,
 			'aspect': self.aspect,
 			'cardinal': self.cardinal,
 			'contact': self.contact,
+			'no_state': self.no_state,
 			'foxs': self.foxs,
 			'guns': self.guns,
 			'fuel': self.fuel,
