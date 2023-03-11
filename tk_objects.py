@@ -188,7 +188,7 @@ class ProblemManagement(ttk.Frame):
 								  self.corrections, text='Given incorrect cardinal direction')
 		self.contact = HoverText('Expected negative or radar contact\nEx. "<Name> <Num>-1, <Alias>, radar contact"',
 								 self.corrections, text='Contact erroniously reported')
-		self.no_state = HoverText('Expected state readback\nFormat: "<Name> <Num>-1, <Alias>, (radar or negat<Fox-3>, <Fox-1>, <Fox-2>, <Guns>, <Fuel>"',
+		self.no_state = HoverText('Expected state readback\nFormat: <Fox-3>, <Fox-1>, <Fox-2>, <Guns>, <Fuel>"',
 								  self.corrections, text='No state readback')
 		self.foxs = HoverText('Incorrect fox count\nEx. "<Fox-3>, <Fox-1>, <Fox-2>, plus, 7.3"',
 								 self.corrections, text='Incorrect fox count')
@@ -273,7 +273,6 @@ class ProblemManagement(ttk.Frame):
 		self.answer_label.grid(column=0, columnspan=2, row=1, sticky='NSW', padx=2)
 
 
-
 class RadarScreen(tk.Canvas):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)		# Create canvas
@@ -289,6 +288,7 @@ class RadarScreen(tk.Canvas):
 		self.scalar = 1
 		self.canv_size = (0, 0)
 		self.canv_center = (0, 0)
+		self.bullseye_pos = (0, 0)
 		self.plane_center = (0, 0)
 		self.planes = [(), (), ()]
 		self.drawing = False
@@ -341,7 +341,7 @@ class RadarScreen(tk.Canvas):
 				self.draw.penup()
 
 				self.ruler_coords = (coords, (coords[0] / self.scalar, coords[1] / self.scalar))   # Log canvas and radar coords
-				self.ruler_down = True		# Signal second dot down
+				self.ruler_down = True		# Signal first dot down
 
 	def set_planes(self, allies, enemies, threats) -> None:
 		self.planes = [enemies, allies, threats]
@@ -436,20 +436,10 @@ class SettingsBox(ttk.Frame):
 		self.wpm_label.grid(column=0, row=3, sticky='NSEW', padx=5)
 		self.tts_wpm.grid(column=1, row=3, sticky='NSEW', padx=5)
 
-		# Set button functions
-		self.problem_dict = {}
-		self.no_prob = None
-
-	def set_funcs(self, check_in_func: Callable, threat_func: Callable, caution_func: Callable, no_prob: Callable) -> None:
-		self.problem_dict[self.check_in_button] = check_in_func
-		self.problem_dict[self.threat_button] = threat_func
-		self.problem_dict[self.caution_button] = caution_func
-		self.no_prob = no_prob
-
-	def get_problem(self) -> Callable:
+	def get_problem(self) -> str:
 		available_problems = [i for i in self.problem_buttons if 'selected' in i.state()]
 		if available_problems:
-			return self.problem_dict[choice(available_problems)]
+			return choice(available_problems).cget('text')
 		else:
-			return self.no_prob
+			return ''
 
