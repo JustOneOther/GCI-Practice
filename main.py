@@ -131,9 +131,9 @@ class ProblemManager:
 			self.avail_signs = file.read().split(', ')
 			self.callsigns = tuple(self.avail_signs)
 
-		self.asyncs = {'sr': threading.Thread(target=do_nothing), 'tts': Process(target=do_nothing)}
-		for process in self.asyncs.values():
-			process.start()
+		self.sr_thread = threading.Thread(target=do_nothing)
+		self.tts_thread = Process(target=do_nothing)
+		self.tts_thread.start()
 		self.sr_on = False
 
 		self.problem_type = ''
@@ -178,7 +178,7 @@ class ProblemManager:
 				{sol_plane.fuel // 10} decimal {sol_plane.fuel % 10}
 				"""
 		process = Process(target=tts_sr.tts_say, args=(phrase,))
-		self.asyncs['tts'] = process
+		self.tts_thread = process
 		process.start()
 
 		dummy_threat = Plane('t_braa', bullseye=sol_plane.bulls)
@@ -313,8 +313,7 @@ class ProblemManager:
 	# ---------- Interface ----------
 
 	def start_problem(self):
-		for i in self.asyncs.values():
-			i.join()
+		self.tts_thread.join()
 		self._clear_vals()   # Clear old problem variables
 		app.reset_answers()  # Reset answer boxes and labels
 		self.problem_type = app.settings.get_problem()
@@ -504,5 +503,4 @@ if __name__ == '__main__':
 	root.mainloop()
 
 	print('Preventing zombie threads')
-	for process in manager.asyncs.values():
-		process.join()
+	manager.tts_thread.join()
