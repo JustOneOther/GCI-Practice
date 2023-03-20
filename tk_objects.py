@@ -1,6 +1,6 @@
 from math import atan2, cos, degrees, radians, sin, sqrt
 from random import choice, uniform
-from tkinter import ttk
+from tkinter import ttk, font
 from typing import Callable
 import tkinter as tk
 import turtle
@@ -15,8 +15,8 @@ class AnswerBox(ttk.Notebook):
 		self.gen_page.columnconfigure(0, weight=1)			# Configure columns/rows
 		self.gen_page.rowconfigure(0, weight=1)
 		self.gen_page.rowconfigure(1, weight=1)
-		self.gen_entry = DefaultEntry('Enter call here or use speech recognition', self.gen_page, default_justify='left')
-		self.gen_text = tk.Label(self.gen_page, text=f'For speech recognition press {sr_key}')			# Instruction label
+		self.gen_entry = DefaultEntry('Enter call here or use speech recognition', self.gen_page, default_justify='left', font='Aileron 9')
+		self.gen_text = tk.Label(self.gen_page, text=f'For speech recognition press {sr_key}', font='Aileron 9')   # Instruction label
 		self.add(self.gen_page, text='General')										# Add page to notebook
 		self.gen_entry.grid(column=0, row=0, sticky='NSEW', padx=5, pady=5)			# Grid out page elements
 		self.gen_text.grid(column=0, row=1, sticky='W', padx=5, pady=5)
@@ -83,7 +83,7 @@ class DefaultEntry(tk.Entry):
 			self.config(fg='#999999', justify=self.default_justify)
 
 
-class HoverText(tk.Label):
+class HoverText(ttk.Label):
 	def __init__(self, hover_text: str, master, *args, **kwargs):
 		super().__init__(master, *args, **kwargs)
 		self.hover_text = hover_text
@@ -98,7 +98,7 @@ class HoverText(tk.Label):
 
 	def _create_tip(self, event):
 		self.hover = tk.Toplevel(self)
-		self.hover_label = tk.Label(self.hover, text=self.hover_text, bg='#dddddd', relief='solid', borderwidth=1)
+		self.hover_label = tk.Label(self.hover, text=self.hover_text, bg='#dddddd', relief='solid', borderwidth=1, font='Aileron 9')
 		self.hover_label.grid(column=0, row=0, ipadx=1, ipady=1)
 		self.hover.wm_overrideredirect(True)
 		self.hover_label.update()
@@ -118,6 +118,8 @@ class InfoBar(ttk.Frame):
 	def __init__(self, version: str, *args, **kwargs) -> None:
 		super().__init__(*args, **kwargs)		# Init frame
 
+		aileron_font = font.Font(family='Aileron')
+
 		# Configure columns & row
 		self.columnconfigure(0, weight=0, minsize=125)
 		self.columnconfigure(1, weight=1)
@@ -126,7 +128,7 @@ class InfoBar(ttk.Frame):
 
 		# Set up objects
 		self.status = ttk.Label(self, text='All good')
-		self.program_label = ttk.Label(self, text='GCI Practice')
+		self.program_label = tk.Label(self, text='GCI Practice', font=aileron_font)
 		self.version_label = ttk.Label(self, text=version)
 
 		# Grid out objects

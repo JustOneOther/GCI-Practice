@@ -1,6 +1,7 @@
 from GCI_structures import Braa, Bulls, Response, TranslateDict
 from math import asin, atan2, cos, degrees, radians, sin, sqrt
 from multiprocessing import Process
+from pyglet import font as py_font
 from random import choice, choices, randint, uniform
 from tkinter import ttk
 from typing import Literal
@@ -29,7 +30,7 @@ class Plane:
 	"""
 	def __init__(self, gen_mode: Literal['random', 'f_braa', 'h_braa', 't_braa'] = 'random',
 				 info_text: bool = True, bullseye: Bulls = None, target: Braa = None):
-		self.sign = avail_signs.pop(randint(0, len(avail_signs) - 1))
+		self.sign = manager.avail_signs.pop(randint(0, len(manager.avail_signs) - 1))
 		self.num = randint(1, 4)
 		if info_text and gen_mode in ['random', 'f_braa']:
 			self.text = f'{self.sign.capitalize()} {self.num}'
@@ -127,7 +128,7 @@ class ProblemManager:
 		self.hostile_list = []
 		self.threat_list = []
 		self.solution_vals = []
-		with open('callsigns.txt', 'r') as file:
+		with open('Resources/callsigns.txt', 'r') as file:
 			self.avail_signs = file.read().split(', ')
 			self.callsigns = tuple(self.avail_signs)
 
@@ -347,6 +348,13 @@ class Sam:
 
 class Window(ttk.Frame):
 	def __init__(self,  *args, **kwargs):
+		gen_style = ttk.Style()
+		gen_style.configure('TCheckbutton', font='Aileron 9')
+		gen_style.configure('TButton', font='Aileron 9')
+		gen_style.configure('TLabel', font='Aileron 9')
+		gen_style.configure('TEntry', font='Aileron 9')
+		gen_style.configure('TNotebook', font='Aileron 9')
+
 		super().__init__(*args, **kwargs)					# Init frame
 		self.grid(column=0, row=0, sticky='NSEW')			# Grid out self
 		self.columnconfigure(0, weight=1, minsize=200)		# Configure columns
@@ -375,6 +383,7 @@ class Window(ttk.Frame):
 
 		# Answer bar
 		self.answers = tk_objects.AnswerBox(sr_key, self)
+		print(self.answers.winfo_class())
 		self.answers.grid(column=0, row=3, sticky='NSEW')
 
 		# Vars
@@ -473,12 +482,7 @@ if __name__ == '__main__':
 	cardinal_translate = {0: 'north', 1: 'northeast', 2: 'east', 3: 'southeast',
 						  4: 'south', 5: 'southwest', 6: 'west', 7: 'northwest'}
 
-	# Read configs
-	with open('callsigns.txt', 'r') as file:
-		callsigns = file.read().split(', ')
-		avail_signs = list(callsigns)
-
-	with open('config.toml', 'rb') as file:
+	with open('Resources/config.toml', 'rb') as file:
 		config_dict = tom.load(file)
 
 	# Convert toml to list/dict
@@ -487,6 +491,8 @@ if __name__ == '__main__':
 	planes = list(config_dict['planes'].values())
 	sam_types = list(config_dict['sams'].values())
 	ground_chance = config_dict['ground_chances']
+
+	py_font.add_file('Resources/Aileron-Regular.otf')
 
 	# ---------- Window setup and runtime ----------
 
