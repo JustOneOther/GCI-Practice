@@ -1,0 +1,80 @@
+# Callsigns
+alias = 0.2         # Replaced by position with user alias
+able = 0.2
+baker = 0.2
+cinnamon = 0.2
+dagger = 0.2
+eagle = 0.2
+feline = 0.2
+gantry = 0.2
+hog = 0.2
+icy = 0.2
+joker = 0.2
+kale = 0.2
+longbow = 0.2
+misfit = 0.2
+nitro = 0.2
+polaris = 0.2
+reach = 0.2
+simple = 0.2
+tempest = 0.2
+vulcan = 0.2
+
+# BRAA/Bullseye
+bra = 0.2
+bullseye = 0.2
+for = 0.2
+at = 0.2
+thousand = 0.2
+hot = 0.2
+flanking = 0.2
+beaming = 0.2
+cold = 0.2
+hostile = 0.2
+track = 0.2
+north = 0.2
+northeast = 0.2
+east = 0.2
+southeast = 0.2
+south = 0.2
+southwest = 0.2
+west = 0.2
+northwest = 0.2
+
+# Mission-specific
+caution = 0.2
+s = 0.2
+a = 0.2
+threat = 0.2
+radar = 0.2
+negative = 0.2
+contact = 0.2
+standby = 0.2
+single = 0.2
+f = 0.2
+j = 0.2
+plus = 0.2
+minus = 0.2
+
+# Numbers
+decimal = 0.2
+zero = 0.2
+one = 0.2
+two = 0.2
+three = 0.2
+four = 0.2
+five = 0.2
+six = 0.2
+seven = 0.2
+eight = 0.2
+niner = 0.2
+ten = 0.2
+eleven = 0.2
+twelve = 0.2
+thirteen = 0.2
+fourteen = 0.2
+fifteen = 0.2
+sixteen = 0.2
+seventeen = 0.2
+eighteen = 0.2
+nineteen = 0.2

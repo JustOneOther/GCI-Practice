@@ -1,6 +1,7 @@
 from random import choice
 from threading import Lock
 import speech_recognition as sr
+import tomllib as tom
 import pyttsx3
 
 
@@ -28,6 +29,10 @@ class SRHandler:
 		self.recognizer = sr.Recognizer()
 		self.microphone = sr.Microphone()
 		self.microphone_list = sr.Microphone.list_microphone_names()
+
+		with open('Resources', 'rb') as file:
+			words_dict = tom.load(file)
+		self.sphinx_words = tuple(zip(words_dict.keys(), words_dict.values()))
 
 		self.stopper = None
 		self.audio_buffer = []				# Stores audio frame data
@@ -58,7 +63,7 @@ class SRHandler:
 
 		audio = self._stop_recording()
 		try:
-			words = self.recognizer.recognize_sphinx(audio)
+			words = self.recognizer.recognize_sphinx(audio, keyword_entries=self.sphinx_words)
 		except sr.UnknownValueError:
 			return 'uw_error'
 
