@@ -131,22 +131,12 @@ class ProblemManager:
 			self.avail_signs = file.read().split(', ')
 			self.callsigns = tuple(self.avail_signs)
 
-		self.sr_thread = threading.Thread(target=do_nothing)
 		self.tts_thread = Process(target=do_nothing)
 		self.tts_thread.start()
-		self.sr_on = False
 
 		self.problem_type = ''
 		self.prob_func_dict = {'Caution': self._caution, 'Threat': self._threat, 'Check-in': self._check_in}
 		self.prob_ans_dict = {'Caution': self._caut_answers, 'Threat': self._threat_answers, 'Check-in': self._check_in_answers}
-
-	@property
-	def sr(self):
-		return self.sr_on
-
-	@sr.setter
-	def sr(self, value: bool):
-		self.sr_on = value
 
 	# ---------- Problem types ----------
 
@@ -377,7 +367,14 @@ class Window(ttk.Frame):
 		self.answers.grid(column=0, row=3, sticky='NSEW')
 
 		# Vars
-		self.canv_affectors = (self.prob_man.button_r, self.prob_man.button_m)
+		self.canv_affectors = (self.prob_man.button_r, self.prob_man.button_m, self.prob_man.button_l)
+
+		self.bind()
+
+		args[0].bind(f'<KeyPress-{sr_key.lower()}>', func=self.start_sr)
+		args[0].bind(f'<KeyRelease-{sr_key.lower()}>', func=self.end_sr)
+
+	# ---------- Internal functions ----------
 
 	def _disable_canv_affectors(self):
 		for button in self.canv_affectors:
@@ -389,6 +386,17 @@ class Window(ttk.Frame):
 		for button in self.canv_affectors:
 			button.config(state='active')
 		self.radar.drawing = False
+
+	def start_sr(self, event):
+		if not sr_manager.stopper:
+			print('start')
+			self._disable_canv_affectors()
+			sr_manager.start_recording()
+
+	def end_sr(self, event):
+		print('end')
+		print(sr_manager.get_words())
+		self._enable_canv_affectors()
 
 	def draw_radar(self):
 		self.radar.set_planes(manager.friend_list, manager.hostile_list, manager.threat_list)
@@ -496,6 +504,7 @@ if __name__ == '__main__':
 	root.rowconfigure(0, weight=1)
 
 	# Init window & probman classes
+	sr_manager = tts_sr.SRHandler()
 	manager = ProblemManager()
 	app = Window(root)
 
@@ -504,3 +513,5 @@ if __name__ == '__main__':
 
 	print('Preventing zombie threads')
 	manager.tts_thread.join()
+	if sr_manager.stopper:
+		sr_manager.stopper()

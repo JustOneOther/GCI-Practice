@@ -1,5 +1,6 @@
 from random import choice
 from threading import Lock
+from time import sleep
 import speech_recognition as sr
 import tomllib as tom
 import pyttsx3
@@ -28,9 +29,14 @@ class SRHandler:
 	def __init__(self):
 		self.recognizer = sr.Recognizer()
 		self.microphone = sr.Microphone()
+		print('A moment of silence please...')
+		sleep(1)		# Give time for user to react
+		with self.microphone as mic:
+			self.recognizer.adjust_for_ambient_noise(mic)
+		print('Microphone is calibrated!')
 		self.microphone_list = sr.Microphone.list_microphone_names()
 
-		with open('Resources', 'rb') as file:
+		with open('Resources/dictionary.toml', 'rb') as file:
 			words_dict = tom.load(file)
 		self.sphinx_words = tuple(zip(words_dict.keys(), words_dict.values()))
 
@@ -45,6 +51,7 @@ class SRHandler:
 			self.audio_buffer.append(audio_data.frame_data)
 
 	def _stop_recording(self):
+		sleep(1)
 		self.stopper()
 		with self.audio_lock:
 			return sr.AudioData(b"".join(self.audio_buffer), self.microphone.SAMPLE_RATE, self.microphone.SAMPLE_WIDTH)
@@ -59,18 +66,21 @@ class SRHandler:
 	def get_words(self) -> str:
 		if self.stopper is None:
 			return 'nw_error'
-		self.stopper = None
 
 		audio = self._stop_recording()
+		self.stopper = None
+
 		try:
 			words = self.recognizer.recognize_sphinx(audio, keyword_entries=self.sphinx_words)
 		except sr.UnknownValueError:
 			return 'uw_error'
+		except IndexError:
+			return 'nw_error'
 
 		return self._parse_str(words)
 
 	def start_recording(self):
 		with self.audio_lock:
 			self.audio_buffer = []
-		self.stopper = self.recognizer.listen_in_background(self.microphone, self._store_audio)
+		self.stopper = self.recognizer.listen_in_background(source=self.microphone, callback=self._store_audio)
 
