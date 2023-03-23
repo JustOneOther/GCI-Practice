@@ -49,12 +49,17 @@ class Microphone:
 		self.audio = pyaudio.PyAudio()
 		self.audio_stream = self.audio.open(rate=self.sample_rate, channels=1, format=self.rec_format, input=True,
 											input_device_index=None, frames_per_buffer=self.chunk_size)
+		print('entered')
 		return self
 
 	def __exit__(self, exc_type, exc_val, exc_tb):
-		self.audio_stream.close()
-		self.audio_stream = None
-		self.audio.terminate()
+		try:		# Might throw an error if close_stream is called, idk
+			self.audio_stream.close()
+			self.audio_stream = None
+			print('closed')
+		finally:
+			self.audio.terminate()
+			print('terminated')
 
 	# ---------- Reading and stopping stuff ----------
 
@@ -74,26 +79,40 @@ class PySRHandler:
 		self.rec_on = False
 		self.rec_thread = None
 		self.out_bytes = b''			# Doesn't need a lock because is only read from after .join()
+		self.audio_data = b''			# Could contain out_byes, but thread safety
+
+		self.config = ps.Config(lm=None, dict=None)
+		self.config['lm'] = 'Resources/lang_model/0889.lm'
+		self.config['dict'] = 'Resources/lang_model/0889.dic'
+		self.config['samprate'] = self.mic.sample_rate
+		self.decoder = ps.Decoder(self.config)
 
 	# ---------- Mic recording ----------
 
 	def start_recording(self):
+		print('starting')
 		self.rec_on = True
 		self.rec_thread = Thread(target=self._record_audio)
 		self.rec_thread.start()
 
 	def stop_recording(self):
+		print('stopping')
 		with self.rec_lock:
 			self.rec_on = False
+		print('joining')
 		self.rec_thread.join()
+		self.audio_data = self.out_bytes
+		self.rec_thread = None
 
-	def _record_audio(self):			# !!! Called from a non-main thread !!!
+	def _record_audio(self):			# !!! - - - Called from a non-main thread - - - !!!
+		print('recording')
 		buffer = BytesIO()
 		with self.mic:
 			while True:
 				buffer.write(self.mic.read_chunk())
 				self.rec_lock.acquire()			# Faster than context manager? Idk, but it might help
 				if not self.rec_on:
+					self.rec_lock.release()
 					break
 				self.rec_lock.release()
 		self.out_bytes = buffer.getvalue()
@@ -102,8 +121,12 @@ class PySRHandler:
 	# ---------- Speech recognition ----------
 
 	def recognize_audio(self):
-		pass
-
+		print('recognizing')
+		self.decoder.start_utt()
+		self.decoder.process_raw(self.audio_data)
+		self.decoder.end_utt()
+		print('gettind decoder')
+		print(self.decoder.hyp().hypstr)
 
 class SRHandler:
 	def __init__(self):

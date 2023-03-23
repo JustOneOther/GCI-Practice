@@ -1,4 +1,3 @@
-from threading import Lock
 import re
 
 
