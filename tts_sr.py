@@ -1,10 +1,8 @@
+from GCI_structures import TranslateDict
 from io import BytesIO
 from random import choice
 from threading import Lock, Thread
-from time import sleep
 import pocketsphinx as ps
-import speech_recognition as sr
-import tomllib as tom
 import pyaudio
 import pyttsx3
 
@@ -35,7 +33,6 @@ class Microphone:
 		self.mic_info = self.audio.get_default_input_device_info()
 		self.rec_format = pyaudio.paInt16
 		self.chunk_size = 2048
-		self.sample_size = pyaudio.get_sample_size(self.rec_format)
 		self.sample_rate = int(self.mic_info["defaultSampleRate"])
 
 		self.audio_stream = None
@@ -49,17 +46,14 @@ class Microphone:
 		self.audio = pyaudio.PyAudio()
 		self.audio_stream = self.audio.open(rate=self.sample_rate, channels=1, format=self.rec_format, input=True,
 											input_device_index=None, frames_per_buffer=self.chunk_size)
-		print('entered')
 		return self
 
 	def __exit__(self, exc_type, exc_val, exc_tb):
 		try:		# Might throw an error if close_stream is called, idk
 			self.audio_stream.close()
 			self.audio_stream = None
-			print('closed')
 		finally:
 			self.audio.terminate()
-			print('terminated')
 
 	# ---------- Reading and stopping stuff ----------
 
@@ -79,7 +73,7 @@ class PySRHandler:
 		self.rec_on = False
 		self.rec_thread = None
 		self.out_bytes = b''			# Doesn't need a lock because is only read from after .join()
-		self.audio_data = b''			# Could contain out_byes, but thread safety
+		self.audio_data = b''			# Could be replaced by out_byes, but thread safety
 
 		self.config = ps.Config(lm=None, dict=None)
 		self.config['lm'] = 'Resources/lang_model/0889.lm'
@@ -87,25 +81,26 @@ class PySRHandler:
 		self.config['samprate'] = self.mic.sample_rate
 		self.decoder = ps.Decoder(self.config)
 
+		self.audio_dict = TranslateDict(ZERO='0', ONE='1', TWO='2', THREE='3', FOUR='4', FIVE='5', SIX='6', SEVEN='7', EIGHT='8', NINE='9',
+										TEN='10', ELEVEN='11', TWELVE='12', THIRTEEN='13', FOURTEEN='14', FIFTEEN='15',
+										SIXTEEN='16', SEVENTEEN='17', EIGHTEEN='18', NINETEEN='19', BRA='BRAA', BULLSEYE='B/E',
+										FLANK='flanking', BEAM='beaming', DRAGGING='drag', DECIMAL='.', BYE='BAI', SEED='SEAD')
+
 	# ---------- Mic recording ----------
 
 	def start_recording(self):
-		print('starting')
 		self.rec_on = True
 		self.rec_thread = Thread(target=self._record_audio)
 		self.rec_thread.start()
 
 	def stop_recording(self):
-		print('stopping')
 		with self.rec_lock:
 			self.rec_on = False
-		print('joining')
 		self.rec_thread.join()
 		self.audio_data = self.out_bytes
 		self.rec_thread = None
 
 	def _record_audio(self):			# !!! - - - Called from a non-main thread - - - !!!
-		print('recording')
 		buffer = BytesIO()
 		with self.mic:
 			while True:
@@ -120,62 +115,17 @@ class PySRHandler:
 
 	# ---------- Speech recognition ----------
 
-	def recognize_audio(self):
-		print('recognizing')
+	def recognize_audio(self) -> str:
 		self.decoder.start_utt()
 		self.decoder.process_raw(self.audio_data)
 		self.decoder.end_utt()
-		print('gettind decoder')
-		print(self.decoder.hyp().hypstr)
+		return self.decoder.hyp().hypstr
 
-class SRHandler:
-	def __init__(self):
-		self.recognizer = sr.Recognizer()
-		self.microphone = sr.Microphone()
-		print('A moment of silence please...')
-		sleep(1)		# Give time for user to react
-		with self.microphone as mic:
-			self.recognizer.adjust_for_ambient_noise(mic)
-		print('Microphone is calibrated!')
-		self.microphone_list = sr.Microphone.list_microphone_names()
-
-		with open('Resources/dictionary.toml', 'rb') as file:
-			words_dict = tom.load(file)
-		self.sphinx_words = tuple(zip(words_dict.keys(), words_dict.values()))
-		print(self.sphinx_words)
-
-		self.stopper = None
-		self.audio_buffer = []				# Stores audio frame data
-		self.audio_lock = Lock()			# Audio buffer lock
-
-	# ---------- Audio recording ----------
-
-	def _store_audio(self, recognizer, audio_data: sr.AudioData):    # !!! - - - Called from a seperate thread - - - !!!
-		with self.audio_lock:
-			self.audio_buffer.append(audio_data)
-
-	def _out_words(self):
-		self.stopper()
-		self.stopper = None
-		print('3')
-		with self.audio_lock:
-			return [self.recognizer.recognize_sphinx(i) for i in self.audio_buffer]
-
-	# ---------- Audio parsing ----------
-	def _parse_str(self, words: str):
-		out = words
-		return out
-
-	# ---------- Interface ----------
-
-	def get_words(self) -> str:
-		if self.stopper is None:
-			return 'nw_error'
-		print('2')
-		return '|'.join(self._out_words())
-
-	def start_recording(self):
-		with self.audio_lock:
-			self.audio_buffer = []
-		self.stopper = self.recognizer.listen_in_background(source=self.microphone, callback=self._store_audio, phrase_time_limit=2.5)
+	def parse_raw(self, raw_str: str) -> str:
+		word_list = raw_str.split(' ')
+		translated = []
+		for word in word_list:
+			translated.append(self.audio_dict[word].lower())
+		out_str = ' '.join(translated).replace(' . ', '.')
+		return out_str
 

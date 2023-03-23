@@ -388,21 +388,15 @@ class Window(ttk.Frame):
 		self.radar.drawing = False
 
 	def start_sr(self, event):
-		# if not sr_manager.stopper:
-		# 	print('start')
-		# 	self._disable_canv_affectors()
-		# 	sr_manager.start_recording()
 		if pysr_manager.rec_thread is None:
 			self._disable_canv_affectors()
 			pysr_manager.start_recording()
 
 	def end_sr(self, event):
-		# print('end')
-		# print(sr_manager.get_words())
-		# self._enable_canv_affectors()
 		pysr_manager.stop_recording()
-		pysr_manager.recognize_audio()
 		self._enable_canv_affectors()
+		raw = pysr_manager.recognize_audio()
+		print(pysr_manager.parse_raw(raw))
 
 	def draw_radar(self):
 		self.radar.set_planes(manager.friend_list, manager.hostile_list, manager.threat_list)
@@ -510,7 +504,6 @@ if __name__ == '__main__':
 	root.rowconfigure(0, weight=1)
 
 	# Init window & probman classes
-#	sr_manager = tts_sr.SRHandler()
 	pysr_manager = tts_sr.PySRHandler()
 	manager = ProblemManager()
 	app = Window(root)
@@ -520,8 +513,6 @@ if __name__ == '__main__':
 
 	print('Preventing zombie threads')
 	manager.tts_thread.join()
-#	if sr_manager.stopper:
-#		sr_manager.stopper()
-	if pysr_manager:
+	if pysr_manager.rec_thread:
 		while pysr_manager.rec_thread.is_alive():
 			pysr_manager.rec_thread.join()
