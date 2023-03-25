@@ -1,5 +1,13 @@
-from random import choice
-import pyttsx3
+try:
+	from random import choice
+	import pyttsx3
+except ImportError as error:
+	from time import sleep
+	print('Make sure that you\'ve imported all required packages.')
+	print("If they are installed correctly, please use send the following to #bugs in Damsel's server:")
+	print(type(error), '|', error.args)
+	sleep(20)
+	raise ImportError
 
 
 tts_engine = pyttsx3.init()
