@@ -60,6 +60,12 @@ class DefaultEntry(tk.Entry):
 		# noinspection PyTypeChecker
 		self.config(fg='#999999', justify=self.default_justify)
 
+	def set_text(self, text):
+		self.delete(0, 'end')
+		self.insert(0, text)
+		# noinspection PyTypeChecker
+		self.config(fg='black', justify=self.default_justify)
+
 	def _focused(self, *args):
 		self.is_focused = True
 		if self.get() == self.text:		# Don't erase user data

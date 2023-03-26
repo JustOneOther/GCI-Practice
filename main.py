@@ -6,7 +6,6 @@ from tkinter import ttk
 from typing import Literal
 import tkinter as tk
 import tomllib as tom
-import threading
 import tk_objects
 import tts_sr
 
@@ -29,7 +28,7 @@ class Plane:
 	"""
 	def __init__(self, gen_mode: Literal['random', 'f_braa', 'h_braa', 't_braa'] = 'random',
 				 info_text: bool = True, bullseye: Bulls = None, target: Braa = None):
-		self.sign = avail_signs.pop(randint(0, len(avail_signs) - 1))
+		self.sign = manager.avail_signs.pop(randint(0, len(manager.avail_signs) - 1))
 		self.num = randint(1, 4)
 		if info_text and gen_mode in ['random', 'f_braa']:
 			self.text = f'{self.sign.capitalize()} {self.num}'
@@ -167,7 +166,7 @@ class ProblemManager:
 				{sol_plane.bulls.dist}; {sol_plane.foxs[0]} {sol_plane.foxs[1]} {sol_plane.foxs[2]}, {sol_plane.guns}, \
 				{sol_plane.fuel // 10} decimal {sol_plane.fuel % 10}
 				"""
-		process = Process(target=tts_sr.tts_say, args=(phrase,))
+		process = Process(target=tts_sr.tts_say, args=(phrase, tts_sr.tts_engine.getProperty('rate')))
 		self.tts_thread = process
 		process.start()
 
@@ -371,8 +370,8 @@ class Window(ttk.Frame):
 
 		self.bind()
 
-		args[0].bind(f'<KeyPress-{sr_key.lower()}>', func=self.start_sr)
-		args[0].bind(f'<KeyRelease-{sr_key.lower()}>', func=self.end_sr)
+		args[0].bind(f'<KeyPress-{sr_key.lower()}>', func=self._start_sr)
+		args[0].bind(f'<KeyRelease-{sr_key.lower()}>', func=self._end_sr)
 
 	# ---------- Internal functions ----------
 
@@ -387,16 +386,18 @@ class Window(ttk.Frame):
 			button.config(state='active')
 		self.radar.drawing = False
 
-	def start_sr(self, event):
+	def _start_sr(self, event):
 		if pysr_manager.rec_thread is None:
 			self._disable_canv_affectors()
 			pysr_manager.start_recording()
 
-	def end_sr(self, event):
+	def _end_sr(self, event):
 		pysr_manager.stop_recording()
 		self._enable_canv_affectors()
-		raw = pysr_manager.recognize_audio()
-		print(pysr_manager.parse_raw(raw))
+		text = pysr_manager.recognize_audio()
+		self.answers.gen_entry.set_text(text)
+
+	# ---------- Outward functions ----------
 
 	def draw_radar(self):
 		self.radar.set_planes(manager.friend_list, manager.hostile_list, manager.threat_list)
@@ -407,6 +408,8 @@ class Window(ttk.Frame):
 		self.radar.draw_bulls()
 		self.radar.draw_planes()
 		self._enable_canv_affectors()
+
+	# ---------- Answer bits ----------
 
 	def get_answers(self):
 		if manager.problem_type == 'Caution':
@@ -424,6 +427,8 @@ class Window(ttk.Frame):
 		self.answers.gen_text.config(fg='black')
 		self.answers.gen_entry.prompt()
 		self.remove_corrections()
+
+	# ---------- Corrections ----------
 
 	def remove_corrections(self):
 		for label in self.prob_man.error_labels.values():
@@ -479,11 +484,6 @@ if __name__ == '__main__':
 	aspect_translate = {0.5: 'hot', 1.5: 'flanking', 2.5: 'beaming', 3.5: 'beaming', 4.5: 'drag', 5.5: 'drag'}
 	cardinal_translate = {0: 'north', 1: 'northeast', 2: 'east', 3: 'southeast',
 						  4: 'south', 5: 'southwest', 6: 'west', 7: 'northwest'}
-
-	# Read configs
-	with open('callsigns.txt', 'r') as file:
-		callsigns = file.read().split(', ')
-		avail_signs = list(callsigns)
 
 	with open('config.toml', 'rb') as file:
 		config_dict = tom.load(file)

@@ -1,6 +1,7 @@
 from GCI_structures import TranslateDict
 from io import BytesIO
 from random import choice
+from re import sub
 from threading import Lock, Thread
 import pocketsphinx as ps
 import pyaudio
@@ -10,18 +11,18 @@ import pyttsx3
 # -------- Text to speech --------
 
 tts_engine = pyttsx3.init()
-tts_engine.setProperty('rate', 200)
 
 
-def tts_set_speed(speed: int) -> None:
-	tts_engine.setProperty('rate', speed)
+def tts_set_speed(new_speed: int) -> None:
+	tts_engine.setProperty('rate', new_speed)
+	tts_engine.runAndWait()
 
 
-def tts_say(phrase: str) -> None:
+def tts_say(phrase: str, speed: int) -> None:
 	tts_engine.setProperty('voice', choice(tts_engine.getProperty('voices')).id)
+	tts_engine.setProperty('rate', speed)
 	tts_engine.say(phrase)
 	tts_engine.runAndWait()
-	tts_engine.stop()
 
 
 # -------- Speech recognition --------
@@ -34,6 +35,7 @@ class Microphone:
 		self.rec_format = pyaudio.paInt16
 		self.chunk_size = 2048
 		self.sample_rate = int(self.mic_info["defaultSampleRate"])
+		self.fps = self.sample_rate / self.chunk_size
 
 		self.audio_stream = None
 
@@ -79,12 +81,17 @@ class PySRHandler:
 		self.config['lm'] = 'Resources/lang_model/0889.lm'
 		self.config['dict'] = 'Resources/lang_model/0889.dic'
 		self.config['samprate'] = self.mic.sample_rate
+		self.config['frate'] = 150
 		self.decoder = ps.Decoder(self.config)
 
-		self.audio_dict = TranslateDict(ZERO='0', ONE='1', TWO='2', THREE='3', FOUR='4', FIVE='5', SIX='6', SEVEN='7', EIGHT='8', NINE='9',
-										TEN='10', ELEVEN='11', TWELVE='12', THIRTEEN='13', FOURTEEN='14', FIFTEEN='15',
-										SIXTEEN='16', SEVENTEEN='17', EIGHTEEN='18', NINETEEN='19', BRA='BRAA', BULLSEYE='B/E',
-										FLANK='flanking', BEAM='beaming', DRAGGING='drag', DECIMAL='.', BYE='BAI', SEED='SEAD')
+		self.audio_dict = TranslateDict(ZERO='0', ONE='1', TWO='2', THREE='3', FOUR='4', FIVE='5', SIX='6', SEVEN='7',
+										EIGHT='8', NINER='9', TEN='10', ELEVEN='11', TWELVE='12', THIRTEEN='13', FOURTEEN='14',
+										FIFTEEN='15', SIXTEEN='16', SEVENTEEN='17', EIGHTEEN='18', NINETEEN='19', TWENTY='2',
+										THIRTY='3', FORTY='4', FIFTY='5', SIXTY='6', SEVENTY='7', EIGHTY='8', NINETY='9',
+										BRA='BRAA', BULLSEYE='B/E',FLANK='flanking', BEAM='beaming', DRAGGING='drag',
+										DECIMAL='.', BYE='BAI', SEED='SEAD', J_F='jf', S_A='SA')
+		self.compound_num = {'TWENTY', 'THIRTY', 'FORTY', 'FIFTY', 'SIXTY', 'SEVENTY', 'EIGHTY', 'NINETY'}
+		self.compound_plane = {'F', 'J_F', 'S_A'}
 
 	# ---------- Mic recording ----------
 
@@ -119,13 +126,36 @@ class PySRHandler:
 		self.decoder.start_utt()
 		self.decoder.process_raw(self.audio_data)
 		self.decoder.end_utt()
-		return self.decoder.hyp().hypstr
+		return self._parse_raw(self.decoder.seg())
 
-	def parse_raw(self, raw_str: str) -> str:
-		word_list = raw_str.split(' ')
-		translated = []
-		for word in word_list:
-			translated.append(self.audio_dict[word].lower())
-		out_str = ' '.join(translated).replace(' . ', '.')
-		return out_str
+	def _parse_raw(self, segments: ps.Segment) -> str:
+		words = []
+		cont_flag = False
+		for seg in segments:
+			word = sub('\(\d\)', '', seg.word)
+			if cont_flag == 'num':
+				if word in ['<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]']:
+					words[-1] += '0'
+				elif word in self.compound_num:
+					words[-1] += '0'
+					words.append(self.audio_dict[word])
+					continue
+				else:
+					words[-1] += self.audio_dict[word]
+				cont_flag = False
+			elif cont_flag == 'plane':
+				if word in ['<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]']:
+					continue
+				words[-1] += '-' + self.audio_dict[word]
+				cont_flag = False
+			elif word in ['<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]']:
+				continue
+			else:
+				words.append(self.audio_dict[word])
+				if word in self.compound_plane:
+					cont_flag = 'plane'
+				if word in self.compound_num:
+					cont_flag = 'num'
+
+		return ' '.join([word.lower() for word in words])
 
