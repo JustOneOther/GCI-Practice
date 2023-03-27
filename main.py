@@ -1,13 +1,21 @@
-from GCI_structures import Braa, Bulls, Response, TranslateDict
-from math import asin, atan2, cos, degrees, radians, sin, sqrt
-from multiprocessing import Process
-from random import choice, choices, randint, uniform
-from tkinter import ttk
-from typing import Literal
-import tkinter as tk
-import tomllib as tom
-import tk_objects
-import tts_sr
+try:
+	from GCI_structures import Braa, Bulls, Response, TranslateDict
+	from math import asin, atan2, cos, degrees, radians, sin, sqrt
+	from multiprocessing import Process
+	from random import choice, choices, randint, uniform
+	from tkinter import ttk
+	from typing import Literal
+	import tkinter as tk
+	import tomllib as tom
+	import tk_objects
+	import tts_sr
+except ImportError as err:
+	from time import sleep
+	print('Please make sure you have all packages installed')
+	print('If you do, please send the following information to #bugs in Damsel\'s server:')
+	print(type(err), '|', err.args)
+	sleep(20)
+	raise Exception('Installation error')
 
 
 class Plane:

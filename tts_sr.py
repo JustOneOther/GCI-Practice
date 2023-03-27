@@ -1,11 +1,19 @@
-from GCI_structures import TranslateDict
-from io import BytesIO
-from random import choice
-from re import sub
-from threading import Lock, Thread
-import pocketsphinx as ps
-import pyaudio
-import pyttsx3
+try:
+	from GCI_structures import TranslateDict
+	from io import BytesIO
+	from random import choice
+	from re import sub
+	from threading import Lock, Thread
+	import pocketsphinx as ps
+	import pyaudio
+	import pyttsx3
+except ImportError as err:
+	from time import sleep
+	print('Please make sure you have all packages installed')
+	print('If you do, please send the following information to #bugs in Damsel\'s server:')
+	print(type(err), '|', err.args)
+	sleep(20)
+	raise Exception('Installation error')
 
 
 # -------- Text to speech --------
@@ -133,8 +141,8 @@ class PySRHandler:
 		cont_flag = False
 		for seg in segments:
 			word = sub('\(\d\)', '', seg.word)
-			if cont_flag == 'num':
-				if word in ['<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]']:
+			if cont_flag == 'num':			# Handle compound numbers
+				if word in {'<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]'}:
 					words[-1] += '0'
 				elif word in self.compound_num:
 					words[-1] += '0'
@@ -143,19 +151,19 @@ class PySRHandler:
 				else:
 					words[-1] += self.audio_dict[word]
 				cont_flag = False
-			elif cont_flag == 'plane':
-				if word in ['<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]']:
+			elif cont_flag == 'plane':		# Handle compound plane/sam names
+				if word in {'<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]'}:
 					continue
 				words[-1] += '-' + self.audio_dict[word]
 				cont_flag = False
-			elif word in ['<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]']:
+			elif word in {'<s>', '</s>', '<sil>', '[NOISE]', '[SPEECH]'}:		# Handle silence or undetermined speech
 				continue
-			else:
+			else:			# Handle standard words
 				words.append(self.audio_dict[word])
 				if word in self.compound_plane:
 					cont_flag = 'plane'
 				if word in self.compound_num:
 					cont_flag = 'num'
-
-		return ' '.join([word.lower() for word in words])
+		out_raw = ' '.join([word.lower() for word in words])			# Create out string
+		return out_raw.replace(' . ', '.').replace('. ', '0.')			# Fix decimals and compound number decimals
 

@@ -1,9 +1,17 @@
-from math import atan2, cos, degrees, radians, sin, sqrt
-from random import choice, uniform
-from tkinter import ttk
-from typing import Callable
-import tkinter as tk
-import turtle
+try:
+	from math import atan2, cos, degrees, radians, sin, sqrt
+	from random import choice, uniform
+	from tkinter import ttk
+	from typing import Callable
+	import tkinter as tk
+	import turtle
+except ImportError as err:
+	from time import sleep
+	print('Please make sure you have all packages installed')
+	print('If you do, please send the following information to #bugs in Damsel\'s server:')
+	print(type(err), '|', err.args)
+	sleep(20)
+	raise Exception('Installation error')
 
 
 class AnswerBox(ttk.Notebook):

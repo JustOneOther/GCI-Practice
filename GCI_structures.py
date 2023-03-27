@@ -1,4 +1,12 @@
-import re
+try:
+	import re
+except ImportError as err:
+	from time import sleep
+	print('Please make sure you have all packages installed')
+	print('If you do, please send the following information to #bugs in Damsel\'s server:')
+	print(type(err), '|', err.args)
+	sleep(20)
+	raise Exception('Installation error')
 
 
 class Bulls:
