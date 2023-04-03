@@ -1,13 +1,12 @@
 try:
-	from threading import Lock
 	import re
-except ImportError as error:
+except ImportError as err:
 	from time import sleep
-	print('Make sure that you\'ve imported all required packages.')
-	print("If they are installed correctly, please use send the following to #bugs in Damsel's server:")
-	print(type(error), '|', error.args)
+	print('Please make sure you have all packages installed')
+	print('If you do, please send the following information to #bugs in Damsel\'s server:')
+	print(type(err), '|', err.args)
 	sleep(20)
-	raise ImportError
+	raise Exception('Installation error')
 
 
 class Bulls:
@@ -38,26 +37,6 @@ class Braa(Bulls):
 		return f'{self.bearing}, {self.dist}, {self.altitude}, {self.heading}, {self.aspect}, {self.cardinal}'
 
 
-class LockVal:
-	"""
-		A variable with a built-in threading.Lock
-		Value is held in .val property
-	"""
-	def __init__(self, val):
-		self.lock = Lock()
-		self.value = val
-
-	@property
-	def val(self):
-		with self.lock:
-			return self.value
-
-	@val.setter
-	def val(self, new_val):
-		with self.lock:
-			self.value = new_val
-
-
 class Response:
 	"""Finds problem-relevant aspects of phrase and checks its format agains form"""
 	def __init__(self, phrase: str, form: str):
@@ -82,7 +61,7 @@ class Response:
 			self.sam_type = sam[1]
 		if state := re.search(r'(\d \d \d) (\+|-|plus|minus) (\d+(\.|,)\d)', phrase):
 			self.foxs = [int(i) for i in state[1].split(' ')]
-			self.guns = (state[2] in ['+', 'plus'])
+			self.guns = (state[2] in {'+', 'plus'})
 			self.fuel = int(state[3].replace(state[4], ''))
 		if mission := re.search(r'(single|[2-4]) ship (\S+) for (\w+)', phrase):
 			self.plane_count = mission[1]
