@@ -1,5 +1,5 @@
 try:
-	from GCI_structures import TranslateDict
+	from Scripts.GCI_structures import TranslateDict
 	from io import BytesIO
 	from random import choice
 	from re import sub
