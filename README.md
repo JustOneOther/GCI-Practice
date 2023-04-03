@@ -13,12 +13,12 @@ enable adding python to PATH.
 
 ### Setting up your install  
 
-In my attempts to make this app easier to develop, I've forgone Marlan's suggestion to use pyinstaller for the moment
-(mostly because I don't want to troubleshoot it/restructure the project). In its place we have the wonderful setup.py
-file. Just open it, follow the instructions, and all the system stuff will be handled for you. To customize your
-install, go to Resources/config.toml and edit the section labeled `# User setup variables`. The only ones there for the
-time being should be `alias` (your name) and `sr_key` (your speech recognition key). Now just run main.py to get 
-running!
+To get started, extract the .zip file into its own folder. In my attempts to make this app easier to develop, I've 
+forgone Marlan's suggestion to use pyinstaller for the moment (mostly because I don't want to troubleshoot 
+it/restructure the project). In its place we have the wonderful setup.py file. Just open it and all the system stuff
+will be handled for you. To customize your install, go to `Resources/config.toml` and edit the section labeled `# User
+setup variables`. The only ones there for the time being should be `alias` (your name) and `sr_key` (your speech 
+recognition key). Now just run main.py to get running!
 
 ## A guide to the app
 

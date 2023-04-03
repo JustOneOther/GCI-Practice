@@ -375,8 +375,6 @@ class Window(ttk.Frame):
 		# Vars
 		self.canv_affectors = (self.prob_man.button_r, self.prob_man.button_m, self.prob_man.button_l)
 
-		self.bind()
-
 		args[0].bind(f'<KeyPress-{sr_key.lower()}>', func=self._start_sr)
 		args[0].bind(f'<KeyRelease-{sr_key.lower()}>', func=self._end_sr)
 
