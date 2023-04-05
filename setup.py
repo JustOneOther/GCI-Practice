@@ -1,5 +1,6 @@
 import subprocess
 from os.path import exists
+from sys import executable, platform
 from time import sleep
 
 
@@ -19,19 +20,36 @@ for file in files:
 		raise FileNotFoundError(f'{file} does not exist')
 print('Done!', end='\n\n')
 
-print('Installing packages')
+print('Checking platform and python version')
+sleep(0.5)
+if platform == 'darwin':
+	print('setup.py does not work on macos, please install the requirements in requirements.txt manually.')
+	sleep(10)
+	raise OSError('Bad OS type')
+try:
+	cout = subprocess.run([executable, '-V'], capture_output=True)
+	assert cout.returncode == 0, "Something went wrong trying to get python's version. Please check your python install."
+	v_nums = str(cout.stdout).split('.')
+	assert v_nums[0][-1] == '3' and int(v_nums[1]) >= 11, "Python should be version 3.11.x"
+except KeyError:
+	print('Something went wrong...')
+	sleep(10)
+	raise KeyError('Error checking python verison')
+print('Done!', end='\n\n')
+
+print('Installing packages, please be patient')
 print('0/3 -> pocketsphinx')
-if (out := subprocess.run('python -m pip install pocketsphinx', capture_output=True)).returncode != 0:
+if (out := subprocess.run([executable, '-m', 'pip', 'install', 'pocketsphinx'], capture_output=True)).returncode != 0:
 	print(f'Something went wrong installing a module \nargs: {out.args}')
 	sleep(10)
 	raise ModuleNotFoundError(out)
 print('1/3 -> pyaudio')
-if (out := subprocess.run('python -m pip install pyaudio', capture_output=True)).returncode != 0:
+if (out := subprocess.run([executable, '-m', 'pip', 'install', 'pyaudio'], capture_output=True)).returncode != 0:
 	print(f'Something went wrong installing a module \nargs: {out.args}')
 	sleep(10)
 	raise ModuleNotFoundError(out)
 print('2/3 -> pyttsx3')
-if (out := subprocess.run('python -m pip install pyttsx3', capture_output=True)).returncode != 0:
+if (out := subprocess.run([executable, '-m', 'pip', 'install', 'pyttsx3'], capture_output=True)).returncode != 0:
 	print(f'Something went wrong installing a module \nargs: {out.args}')
 	sleep(10)
 	raise ModuleNotFoundError(out)
