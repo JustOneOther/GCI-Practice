@@ -352,7 +352,7 @@ class Window(ttk.Frame):
 		self.rowconfigure(3, weight=0, minsize=100)
 
 		# Infobar
-		self.infobar = tk_objects.InfoBar('v0.5.0-alpha', self)
+		self.infobar = tk_objects.InfoBar('v0.5.1-beta', self)
 		self.infobar.grid(column=0, row=0, sticky='NSEW', padx=5)
 
 		# Problem management
