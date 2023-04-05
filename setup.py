@@ -32,7 +32,9 @@ try:
 	v_nums = str(cout.stdout).split('.')
 	assert v_nums[0][-1] == '3' and int(v_nums[1]) >= 11, "Python should be version 3.11.x"
 except KeyError:
-	print('problem')
+	print('Something went wrong...')
+	sleep(10)
+	raise KeyError('Error checking python verison')
 print('Done!', end='\n\n')
 
 print('Installing packages, please be patient')
