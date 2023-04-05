@@ -1,6 +1,6 @@
 import subprocess
 from os.path import exists
-from sys import executable
+from sys import executable, platform
 from time import sleep
 
 
@@ -20,8 +20,12 @@ for file in files:
 		raise FileNotFoundError(f'{file} does not exist')
 print('Done!', end='\n\n')
 
-print('Checking python version')
+print('Checking platform and python version')
 sleep(0.5)
+if platform == 'darwin':
+	print('setup.py does not work on macos, please install the requirements in requirements.txt manually.')
+	sleep(10)
+	raise OSError('Bad OS type')
 try:
 	cout = subprocess.run([executable, '-V'], capture_output=True)
 	assert cout.returncode == 0, "Something went wrong trying to get python's version. Please check your python install."
