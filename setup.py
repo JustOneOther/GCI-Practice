@@ -28,11 +28,17 @@ if platform == 'darwin':
 	raise OSError('Bad OS type')
 try:
 	cout = subprocess.run([executable, '-V'], capture_output=True)
-	assert cout.returncode == 0, "Something went wrong trying to get python's version. Please check your python install."
+	if cout.returncode != 0:
+		print('Something went wrong trying to get python\'s version. Please check your python install.')
+		sleep(10)
+		raise Exception()
 	v_nums = str(cout.stdout).split('.')
-	assert v_nums[0][-1] == '3' and int(v_nums[1]) >= 11, "Python should be version 3.11.x"
+	if v_nums[0][-1] == '3' and int(v_nums[1]) >= 11:
+		print('Python should be version 3.11.x')
+		sleep(10)
+		raise AssertionError()
 except KeyError:
-	print('Something went wrong...')
+	print('Something went wrong...\nKeyerror checking python version')
 	sleep(10)
 	raise KeyError('Error checking python verison')
 print('Done!', end='\n\n')
