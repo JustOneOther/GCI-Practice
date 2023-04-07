@@ -28,31 +28,37 @@ if platform == 'darwin':
 	raise OSError('Bad OS type')
 try:
 	cout = subprocess.run([executable, '-V'], capture_output=True)
-	assert cout.returncode == 0, "Something went wrong trying to get python's version. Please check your python install."
+	if cout.returncode != 0:
+		print('Something went wrong trying to get python\'s version. Please check your python install.')
+		sleep(10)
+		raise Exception()
 	v_nums = str(cout.stdout).split('.')
-	assert v_nums[0][-1] == '3' and int(v_nums[1]) >= 11, "Python should be version 3.11.x"
+	if v_nums[0][-1] == '3' and int(v_nums[1]) >= 11:
+		print('Python should be version 3.11.x or later')
+		sleep(10)
+		raise AssertionError()
 except KeyError:
-	print('Something went wrong...')
+	print('Something went wrong... \nKeyerror version checker')
 	sleep(10)
 	raise KeyError('Error checking python verison')
 print('Done!', end='\n\n')
 
 print('Installing packages, please be patient')
-print('0/3 -> pocketsphinx')
-if (out := subprocess.run([executable, '-m', 'pip', 'install', 'pocketsphinx'], capture_output=True)).returncode != 0:
-	print(f'Something went wrong installing a module \nargs: {out.args}')
-	sleep(10)
-	raise ModuleNotFoundError(out)
-print('1/3 -> pyaudio')
-if (out := subprocess.run([executable, '-m', 'pip', 'install', 'pyaudio'], capture_output=True)).returncode != 0:
-	print(f'Something went wrong installing a module \nargs: {out.args}')
-	sleep(10)
-	raise ModuleNotFoundError(out)
-print('2/3 -> pyttsx3')
-if (out := subprocess.run([executable, '-m', 'pip', 'install', 'pyttsx3'], capture_output=True)).returncode != 0:
-	print(f'Something went wrong installing a module \nargs: {out.args}')
-	sleep(10)
-	raise ModuleNotFoundError(out)
+i = 0
+for library in ['pocketsphinx', 'pyaudio', 'pyttsx3']:
+	print(f'{i}/3 -> pocketsphinx')
+	if (out := subprocess.run([executable, '-m', 'pip', 'install', library], capture_output=True)).returncode != 0:
+		if 'Building windows wheels for Python 3.11 requires Microsoft Visual Studio' in str(out.stderr):
+			print(f'You need to install a C/C++ compiler, one is available with Visual Studio at https://visualstudio.microsoft.com/vs/')
+			print(f'args: {out.args} \nout: {out.stdout} \nerror: {out.stderr}')
+			sleep(10)
+			raise ModuleNotFoundError(out)
+		else:
+			print(f'Something went wrong installing a module')
+			print(f'args: {out.args} \nout: {out.stdout} \nerror: {out.stderr}')
+			sleep(10)
+		raise ModuleNotFoundError(out)
+	i += 1
 print('3/3 -> Done', end='\n\n')
 
 print('All done! Closing in 3')
