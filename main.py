@@ -1,15 +1,20 @@
-from GCI_structures import Braa, Bulls, Response, TranslateDict
-from math import asin, atan2, cos, degrees, radians, sin, sqrt
-from multiprocessing import Process
-from pyglet import font as py_font
-from random import choice, choices, randint, uniform
-from tkinter import ttk
-from typing import Literal
-import tkinter as tk
-import tomllib as tom
-import threading
-import tk_objects
-import tts_sr
+try:
+	from Scripts.GCI_structures import Braa, Bulls, Response, TranslateDict
+	from math import asin, atan2, cos, degrees, radians, sin, sqrt
+	from multiprocessing import Process
+	from random import choice, choices, randint, uniform
+	from tkinter import ttk
+	from typing import Literal
+	import tkinter as tk
+	import tomllib as tom
+	from Scripts import tk_objects, tts_sr
+except ImportError as err:
+	from time import sleep
+	print('Please make sure you have all packages installed')
+	print('If you do, please send the following information to #bugs in Damsel\'s server:')
+	print(type(err), '|', err.args)
+	sleep(20)
+	raise Exception('Installation error')
 
 
 class Plane:
@@ -132,22 +137,12 @@ class ProblemManager:
 			self.avail_signs = file.read().split(', ')
 			self.callsigns = tuple(self.avail_signs)
 
-		self.asyncs = {'sr': threading.Thread(target=do_nothing), 'tts': Process(target=do_nothing)}
-		for process in self.asyncs.values():
-			process.start()
-		self.sr_on = False
+		self.tts_thread = Process(target=do_nothing)
+		self.tts_thread.start()
 
 		self.problem_type = ''
 		self.prob_func_dict = {'Caution': self._caution, 'Threat': self._threat, 'Check-in': self._check_in}
 		self.prob_ans_dict = {'Caution': self._caut_answers, 'Threat': self._threat_answers, 'Check-in': self._check_in_answers}
-
-	@property
-	def sr(self):
-		return self.sr_on
-
-	@sr.setter
-	def sr(self, value: bool):
-		self.sr_on = value
 
 	# ---------- Problem types ----------
 
@@ -178,8 +173,8 @@ class ProblemManager:
 				{sol_plane.bulls.dist}; {sol_plane.foxs[0]} {sol_plane.foxs[1]} {sol_plane.foxs[2]}, {sol_plane.guns}, \
 				{sol_plane.fuel // 10} decimal {sol_plane.fuel % 10}
 				"""
-		process = Process(target=tts_sr.tts_say, args=(phrase,))
-		self.asyncs['tts'] = process
+		process = Process(target=tts_sr.tts_say, args=(phrase, tts_sr.tts_engine.getProperty('rate')))
+		self.tts_thread = process
 		process.start()
 
 		dummy_threat = Plane('t_braa', bullseye=sol_plane.bulls)
@@ -314,8 +309,7 @@ class ProblemManager:
 	# ---------- Interface ----------
 
 	def start_problem(self):
-		for i in self.asyncs.values():
-			i.join()
+		self.tts_thread.join()
 		self._clear_vals()   # Clear old problem variables
 		app.reset_answers()  # Reset answer boxes and labels
 		self.problem_type = app.settings.get_problem()
@@ -348,13 +342,6 @@ class Sam:
 
 class Window(ttk.Frame):
 	def __init__(self,  *args, **kwargs):
-		gen_style = ttk.Style()
-		gen_style.configure('TCheckbutton', font='Aileron 9')
-		gen_style.configure('TButton', font='Aileron 9')
-		gen_style.configure('TLabel', font='Aileron 9')
-		gen_style.configure('TEntry', font='Aileron 9')
-		gen_style.configure('TNotebook', font='Aileron 9')
-
 		super().__init__(*args, **kwargs)					# Init frame
 		self.grid(column=0, row=0, sticky='NSEW')			# Grid out self
 		self.columnconfigure(0, weight=1, minsize=200)		# Configure columns
@@ -365,7 +352,7 @@ class Window(ttk.Frame):
 		self.rowconfigure(3, weight=0, minsize=100)
 
 		# Infobar
-		self.infobar = tk_objects.InfoBar('v0.4.1-alpha', self)
+		self.infobar = tk_objects.InfoBar('v0.5.2-beta', self)
 		self.infobar.grid(column=0, row=0, sticky='NSEW', padx=5)
 
 		# Problem management
@@ -383,11 +370,15 @@ class Window(ttk.Frame):
 
 		# Answer bar
 		self.answers = tk_objects.AnswerBox(sr_key, self)
-		print(self.answers.winfo_class())
 		self.answers.grid(column=0, row=3, sticky='NSEW')
 
 		# Vars
-		self.canv_affectors = (self.prob_man.button_r, self.prob_man.button_m)
+		self.canv_affectors = (self.prob_man.button_r, self.prob_man.button_m, self.prob_man.button_l)
+
+		args[0].bind(f'<KeyPress-{sr_key.lower()}>', func=self._start_sr)
+		args[0].bind(f'<KeyRelease-{sr_key.lower()}>', func=self._end_sr)
+
+	# ---------- Internal functions ----------
 
 	def _disable_canv_affectors(self):
 		for button in self.canv_affectors:
@@ -400,6 +391,19 @@ class Window(ttk.Frame):
 			button.config(state='active')
 		self.radar.drawing = False
 
+	def _start_sr(self, event):
+		if pysr_manager.rec_thread is None:
+			self._disable_canv_affectors()
+			pysr_manager.start_recording()
+
+	def _end_sr(self, event):
+		pysr_manager.stop_recording()
+		self._enable_canv_affectors()
+		text = pysr_manager.recognize_audio()
+		self.answers.gen_entry.set_text(text)
+
+	# ---------- Outward functions ----------
+
 	def draw_radar(self):
 		self.radar.set_planes(manager.friend_list, manager.hostile_list, manager.threat_list)
 		self.radar.set_scalar()
@@ -409,6 +413,8 @@ class Window(ttk.Frame):
 		self.radar.draw_bulls()
 		self.radar.draw_planes()
 		self._enable_canv_affectors()
+
+	# ---------- Answer bits ----------
 
 	def get_answers(self):
 		if manager.problem_type == 'Caution':
@@ -426,6 +432,8 @@ class Window(ttk.Frame):
 		self.answers.gen_text.config(fg='black')
 		self.answers.gen_entry.prompt()
 		self.remove_corrections()
+
+	# ---------- Corrections ----------
 
 	def remove_corrections(self):
 		for label in self.prob_man.error_labels.values():
@@ -492,8 +500,6 @@ if __name__ == '__main__':
 	sam_types = list(config_dict['sams'].values())
 	ground_chance = config_dict['ground_chances']
 
-	py_font.add_file('Resources/Aileron-Regular.otf')
-
 	# ---------- Window setup and runtime ----------
 
 	root = tk.Tk()
@@ -503,6 +509,7 @@ if __name__ == '__main__':
 	root.rowconfigure(0, weight=1)
 
 	# Init window & probman classes
+	pysr_manager = tts_sr.PySRHandler()
 	manager = ProblemManager()
 	app = Window(root)
 
@@ -510,5 +517,7 @@ if __name__ == '__main__':
 	root.mainloop()
 
 	print('Preventing zombie threads')
-	for process in manager.asyncs.values():
-		process.join()
+	manager.tts_thread.join()
+	if pysr_manager.rec_thread:
+		while pysr_manager.rec_thread.is_alive():
+			pysr_manager.rec_thread.join()
