@@ -50,7 +50,6 @@ Problem types:
 Speech recognition  
 Text to speech  
 Clickable radar screen  
-BRAA and Bullseye table  
 Answer checking  
 
 ### Roadmap
