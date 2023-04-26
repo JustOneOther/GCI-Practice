@@ -33,7 +33,7 @@ try:
 		sleep(10)
 		raise Exception()
 	v_nums = str(cout.stdout).split('.')
-	if v_nums[0][-1] == '3' and int(v_nums[1]) >= 11:
+	if v_nums[0][-1] != '3' or int(v_nums[1]) < 11:
 		print('Python should be version 3.11.x or later')
 		sleep(10)
 		raise AssertionError()
@@ -46,7 +46,7 @@ print('Done!', end='\n\n')
 print('Installing packages, please be patient')
 i = 0
 for library in ['pocketsphinx', 'pyaudio', 'pyttsx3']:
-	print(f'{i}/3 -> pocketsphinx')
+	print(f'{i}/3 -> {library}')
 	if (out := subprocess.run([executable, '-m', 'pip', 'install', library], capture_output=True)).returncode != 0:
 		if 'Building windows wheels for Python 3.11 requires Microsoft Visual Studio' in str(out.stderr):
 			print(f'You need to install a C/C++ compiler, one is available with Visual Studio at https://visualstudio.microsoft.com/vs/')

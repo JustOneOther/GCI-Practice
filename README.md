@@ -49,7 +49,7 @@ Problem types:
 
 Speech recognition  
 Text to speech  
-Clickable radar screen  
+Clickable radar screen   
 Answer checking  
 
 ### Roadmap

@@ -2,7 +2,7 @@ try:
 	from math import atan2, cos, degrees, radians, sin, sqrt
 	from random import choice, uniform
 	from tkinter import ttk
-	from typing import Callable
+	from typing import Callable, Literal
 	import tkinter as tk
 	import turtle
 except ImportError as err:
@@ -19,7 +19,7 @@ class AnswerBox(ttk.Notebook):
 		super().__init__(*args, **kwargs)			# Init notebook
 
 		# Set up general answer page
-		self.gen_page = tk.Frame(self)						# Create frame
+		self.gen_page = ttk.Frame(self)						# Create frame
 		self.gen_page.columnconfigure(0, weight=1)			# Configure columns/rows
 		self.gen_page.rowconfigure(0, weight=1)
 		self.gen_page.rowconfigure(1, weight=1)
@@ -31,7 +31,7 @@ class AnswerBox(ttk.Notebook):
 
 	@property
 	def answer_box(self):
-		return self.gen_entry.get().lower().replace(',', '')
+		return self.gen_entry.get().lower().replace(', ', ' ')
 
 
 class DefaultEntry(tk.Entry):
@@ -41,10 +41,10 @@ class DefaultEntry(tk.Entry):
 	def __init__(self, text: str, *args, **kwargs):
 		# Do justify bits
 		try:
-			self.default_justify = kwargs['default_justify']
+			self.default_justify: Literal['left', 'center', 'right'] = kwargs['default_justify']
 			kwargs.pop('default_justify')
 		except KeyError:
-			self.default_justify = 'center'
+			self.default_justify: Literal['left', 'center', 'right'] = 'center'
 
 		super().__init__(*args, **kwargs)		# Init entry
 
@@ -65,13 +65,11 @@ class DefaultEntry(tk.Entry):
 		"""
 		self.delete(0, 'end')
 		self.insert(0, self.text)
-		# noinspection PyTypeChecker
 		self.config(fg='#999999', justify=self.default_justify)
 
 	def set_text(self, text):
 		self.delete(0, 'end')
 		self.insert(0, text)
-		# noinspection PyTypeChecker
 		self.config(fg='black', justify=self.default_justify)
 
 	def _focused(self, *args):
@@ -87,13 +85,11 @@ class DefaultEntry(tk.Entry):
 	def _on_enter(self, *args):
 		if self.get() == self.text:		# Don't erase user data
 			self.delete(0, 'end')
-			# noinspection PyTypeChecker
 			self.config(fg='black', justify=self.default_justify)
 
 	def _on_exit(self, *args):
 		if self.get() == '' and not self.is_focused:		# Don't erase user data
 			self.insert(0, self.text)
-			# noinspection PyTypeChecker
 			self.config(fg='#999999', justify=self.default_justify)
 
 
