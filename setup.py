@@ -5,9 +5,9 @@ from time import sleep
 
 
 print('Verifying installation (checking if files exist)')
-files = ('main.py', 'Scripts/__init__.py', 'Scripts/GCI_structures.py', 'Scripts/tk_objects.py', 'Scripts/tts_sr.py',
-		 'Resources/callsigns.txt', 'Resources/config.toml', 'Resources/lang_model/0889.dic', 'Resources/lang_model/0889.lm',
-		 'Resources/lang_model/0889.log_pronounce', 'Resources/lang_model/0889.sent', 'Resources/lang_model/0889.vocab')
+files = ('main.py', 'scripts/__init__.py', 'scripts/GCI_structures.py', 'scripts/tk_objects.py', 'scripts/tts_sr.py',
+		 'resources/callsigns.txt', 'resources/config.toml', 'resources/lang_model/0889.dic', 'resources/lang_model/0889.lm',
+		 'resources/lang_model/0889.log_pronounce', 'resources/lang_model/0889.sent', 'resources/lang_model/0889.vocab')
 for file in files:
 	sleep(0.2)		# Slow down for user and make it feel like the computer's acutally doing something
 	is_there = exists(file)

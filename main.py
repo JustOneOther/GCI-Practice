@@ -1,5 +1,5 @@
 try:
-	from Scripts.GCI_structures import Braa, Bulls, Response, TranslateDict
+	from scripts.GCI_structures import Braa, Bulls, Response, TranslateDict
 	from math import asin, atan2, cos, degrees, radians, sin, sqrt
 	from multiprocessing import Process
 	from random import choice, choices, randint, uniform
@@ -7,7 +7,7 @@ try:
 	from typing import Literal
 	import tkinter as tk
 	import tomllib as tom
-	from Scripts import tk_objects, tts_sr
+	from scripts import tk_objects, tts_sr
 except ImportError as err:
 	from time import sleep
 	print('Please make sure you have all packages installed')
@@ -133,7 +133,7 @@ class ProblemManager:
 		self.hostile_list = []
 		self.threat_list = []
 		self.solution_vals = []
-		with open('Resources/callsigns.txt', 'r') as file:
+		with open('resources/callsigns.txt', 'r') as file:
 			self.avail_signs = file.read().split(', ')
 			self.callsigns = tuple(self.avail_signs)
 
@@ -490,7 +490,7 @@ if __name__ == '__main__':
 	cardinal_translate = {0: 'north', 1: 'northeast', 2: 'east', 3: 'southeast',
 						  4: 'south', 5: 'southwest', 6: 'west', 7: 'northwest'}
 
-	with open('Resources/config.toml', 'rb') as file:
+	with open('resources/config.toml', 'rb') as file:
 		config_dict = tom.load(file)
 
 	# Convert toml to list/dict

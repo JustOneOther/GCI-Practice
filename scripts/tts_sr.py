@@ -1,5 +1,5 @@
 try:
-	from Scripts.GCI_structures import TranslateDict
+	from scripts.GCI_structures import TranslateDict
 	from io import BytesIO
 	from random import choice
 	from re import sub
@@ -86,8 +86,8 @@ class PySRHandler:
 		self.audio_data = b''			# Could be replaced by out_byes, but thread safety
 
 		self.config = ps.Config(lm=None, dict=None)
-		self.config['lm'] = 'Resources/lang_model/0889.lm'
-		self.config['dict'] = 'Resources/lang_model/0889.dic'
+		self.config['lm'] = 'resources/lang_model/0889.lm'
+		self.config['dict'] = 'resources/lang_model/0889.dic'
 		self.config['samprate'] = self.mic.sample_rate
 		self.config['frate'] = 150
 		self.decoder = ps.Decoder(self.config)
