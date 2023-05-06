@@ -24,7 +24,7 @@ class AnswerBox(ttk.Notebook):
 		self.gen_page.rowconfigure(0, weight=1)
 		self.gen_page.rowconfigure(1, weight=1)
 		self.gen_entry = DefaultEntry('Enter call here or use speech recognition', self.gen_page, default_justify='left')
-		self.gen_text = ttk.Label(self.gen_page, text=f'For speech recognition press {sr_key}')			# Instruction label
+		self.gen_text = tk.Label(self.gen_page, text=f'For speech recognition press {sr_key}')			# Instruction label
 		self.add(self.gen_page, text='General')										# Add page to notebook
 		self.gen_entry.grid(column=0, row=0, sticky='NSEW', padx=5, pady=5)			# Grid out page elements
 		self.gen_text.grid(column=0, row=1, sticky='W', padx=5, pady=5)
@@ -288,10 +288,12 @@ class RadarScreen(tk.Canvas):
 		super().__init__(*args, **kwargs)		# Create canvas
 
 		# Set up turtle
-		self.draw = turtle.RawTurtle(self)
-		self.draw.speed(0)
+		self.draw_screen = turtle.TurtleScreen(self)		# Create turtle screen
+		self.draw_screen.tracer(False)						# Disable animations (instant update)
+		self.draw = turtle.RawTurtle(self.draw_screen)
 		self.draw.hideturtle()
 		self.draw.penup()
+		self.draw_screen.update()							# Update to remove turtle icon
 
 		# Init variables
 		self.top_left = (-self.draw.screen.screensize()[0] // 2, self.draw.screen.screensize()[1] // 2)
@@ -412,6 +414,7 @@ class RadarScreen(tk.Canvas):
 			self.draw.penup()
 
 		self.draw.color('black')
+		self.draw_screen.update()
 
 
 class SettingsBox(ttk.Frame):
